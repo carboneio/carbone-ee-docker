@@ -1,0 +1,110 @@
+name: Release Carbone Docker
+
+on:
+    workflow_dispatch:
+      inputs:
+        lo_version:
+          type: string
+          description: Version number. Tag in libreoffice repository
+          required: true
+          default: "24.8.2.1"
+        carbone_version:
+          type: string
+          description: Version of Carbone-ee
+          required: true
+          default: "4.23.6"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    -
+      name: Checkout
+      uses: actions/checkout@v4
+
+    -
+      name: Checkout s3 plugin
+      uses: actions/checkout@v4
+      with:
+        repository: carboneio/carbone-ee-plugin-s3
+        path: carbone-ee-plugin-s3
+        ref: master
+
+    -
+        name: Checkout azure plugin
+        uses: actions/checkout@v4
+        with:
+            repository: carboneio/carbone-ee-plugin-azure-storage-blob
+            path: carbone-ee-plugin-azure-storage-blob
+            ref: master
+
+    -
+      name: Install S3 plugin dependency
+      run: cd docker/carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
+
+    -
+        name: Install Azure plugin dependency
+        run: cd docker/carbone-ee-plugin-s3 && npm i && npm ci --omit=dev && rm -R test
+
+    -
+      name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+      
+    -
+      name: Buildx and push slim variant
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: ./
+        provenance: mode=max
+        sbom: true
+        build-args:
+            CARBONE_VERSION=${{ inputs.carbone_version }}
+        file: ./Dockerfile-slim
+        push: true
+        tags: ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim-${{ inputs.carbone_version }},${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim
+
+    -
+      name: Buildx and push full variant
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: ./
+        provenance: mode=max
+        sbom: true
+        file: ./Dockerfile
+        push: true
+        tags: ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8,${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }},${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
+
+    -
+      name: Checkout fonts
+      uses: actions/checkout@v4
+      with:
+        repository: carboneio/carbone-fonts
+        path: carbone-fonts
+        ref: master
+        ssh-key: ${{ secrets.PRIVATE_KEY_FONT_REPO }}
+
+    - 
+      name: Remove commercial font
+      run: rm -r carbone-fonts/custom
+
+    -
+      name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        context: ./
+        provenance: mode=max
+        sbom: true
+        file: ./Dockerfile-fonts
+        push: true
+        tags: ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts,${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts,${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts

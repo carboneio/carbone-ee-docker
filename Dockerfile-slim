@@ -1,0 +1,39 @@
+FROM debian:stable-slim
+
+ARG TARGETPLATFORM
+ARG TARGETARCH
+ARG CARBONE_VERSION="4.23.7"
+
+WORKDIR /tmp
+RUN apt update && \
+    apt install -y libfreetype6 fontconfig libgssapi-krb5-2 fonts-dejavu-core  && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create Carbone user
+RUN adduser carbone --home /app --no-create-home --disabled-password --system
+
+# Copy the local binary into the image folder "app"
+ENV APP_ROOT=/app/
+RUN mkdir ${APP_ROOT} && chown -R carbone:nogroup ${APP_ROOT}
+
+WORKDIR ${APP_ROOT}
+
+ADD --chown=carbone:nogroup --chmod=755 https://carbone-bin.b-cdn.net/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
+
+COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
+
+# Include plugins
+COPY --chown=carbone:nogroup ./carbone-ee-plugin-s3 /app/plugin-s3/
+COPY --chown=carbone:nogroup ./carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
+
+# Include basic fonts
+COPY --chown=carbone:nogroup fonts /usr/share/fonts/
+RUN fc-cache -f -v
+
+USER carbone
+
+RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
+CMD ["webserver"]
