@@ -44,7 +44,7 @@ jobs:
 
     -
         name: Install Azure plugin dependency
-        run: cd carbone-ee-plugin-s3 && npm i && npm ci --omit=dev && rm -R test
+        run: cd carbone-ee-plugin-s3 && npm i && npm ci --omit=dev
 
     -
       name: Login to Docker Hub
