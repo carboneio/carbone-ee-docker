@@ -80,6 +80,9 @@ jobs:
         context: ./
         provenance: mode=max
         sbom: true
+        build-args:
+            CARBONE_VERSION=${{ inputs.carbone_version }}
+            LO_VERSION=${{ inputs.lo_version }}
         file: ./Dockerfile
         push: true
         tags: ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8,${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }},${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
@@ -105,6 +108,9 @@ jobs:
         context: ./
         provenance: mode=max
         sbom: true
+        build-args:
+            CARBONE_VERSION=${{ inputs.carbone_version }}
+            LO_VERSION=${{ inputs.lo_version }}
         file: ./Dockerfile-fonts
         push: true
         tags: ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts,${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts,${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts
