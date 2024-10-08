@@ -91,6 +91,7 @@ jobs:
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest
 
     -
       name: Checkout fonts
@@ -118,7 +119,7 @@ jobs:
           LO_VERSION=${{ inputs.lo_version }}
         file: ./Dockerfile-fonts
         push: true
-        tags: 
+        tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts
