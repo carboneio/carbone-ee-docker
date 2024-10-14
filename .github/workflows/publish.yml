@@ -105,9 +105,13 @@ jobs:
     - 
       name: Remove commercial font
       run: rm -r carbone-fonts/custom
-
     -
-      name: Build and push
+      name: Set up again Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+    -
+      name: Build and push font variant
       uses: docker/build-push-action@v6
       with:
         platforms: linux/amd64,linux/arm64
