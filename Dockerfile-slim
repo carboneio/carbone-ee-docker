@@ -18,7 +18,7 @@ RUN mkdir ${APP_ROOT} && chown -R carbone:nogroup ${APP_ROOT}
 
 WORKDIR ${APP_ROOT}
 
-ADD --chown=carbone:nogroup --chmod=755 https://carbone-bin.b-cdn.net/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
+ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
