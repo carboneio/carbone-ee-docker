@@ -3,7 +3,7 @@ ARG TARGETARCH
 ARG LO_VERSION="24.8.2.1"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
-ADD https://carbone-bin.b-cdn.net/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
+ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
 
 FROM debian:stable-slim
 
@@ -25,7 +25,7 @@ RUN mkdir ${APP_ROOT} && chown -R carbone:nogroup ${APP_ROOT}
 
 WORKDIR ${APP_ROOT}
 
-ADD --chown=carbone:nogroup --chmod=755 https://carbone-bin.b-cdn.net/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
+ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
