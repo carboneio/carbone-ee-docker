@@ -120,7 +120,7 @@ jobs:
           LO_VERSION=${{ inputs.lo_version }}
           OO_VERSION=${{ inputs.onlyoffice_version}}
         file: ./Dockerfile-fonts
-        push: true
+        push: false
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-O8.1-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
