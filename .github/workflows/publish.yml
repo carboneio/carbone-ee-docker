@@ -122,3 +122,4 @@ jobs:
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts
