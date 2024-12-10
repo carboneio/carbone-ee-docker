@@ -1,6 +1,6 @@
 FROM debian:stable-slim AS downloader
 ARG TARGETARCH
-ARG LO_VERSION="24.8.2.1"
+ARG LO_VERSION="24.8.3.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
@@ -9,7 +9,9 @@ FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="4.23.7"
+ARG CARBONE_VERSION="4.25.0"
+
+LABEL carbone.version=${CARBONE_VERSION}
 
 WORKDIR /tmp
 RUN apt update && \
@@ -46,6 +48,8 @@ RUN fc-cache -f -v
 USER carbone
 
 RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin
+
+EXPOSE 4000/tcp
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 

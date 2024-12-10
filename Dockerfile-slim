@@ -2,7 +2,7 @@ FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="4.23.7"
+ARG CARBONE_VERSION="4.25.0"
 
 WORKDIR /tmp
 RUN apt update && \
@@ -33,6 +33,8 @@ RUN fc-cache -f -v
 USER carbone
 
 RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin
+
+EXPOSE 4000/tcp
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 

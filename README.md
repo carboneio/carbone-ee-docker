@@ -1,21 +1,4 @@
-# carbone-ee-docker
-Carbone enterprise edition official docker container
-
-## Build
-
-### Build slim variant
-```bash
-export CARBONE_VERSION=4.23.6
-
-docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:$CARBONE_VERSION-slim --attest type=provenance,mode=max --sbom=true ./DockerFile-slim
-```
-
-### Build full variant
-```bash
-export CARBONE_VERSION=4.23.6
-
-docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:$CARBONE_VERSION --attest type=provenance,mode=max --sbom=true ./DockerFile-slim
-```
+# Carbone enterprise edition official docker container
 
 ## Quick reference
 
@@ -23,14 +6,46 @@ docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_
 
 - 	**Documentation**: [On-premise install, options and plugins](https://carbone.io/on-premise.html)
 
--	**Where to get help**:  [Chat with us](https://go.crisp.chat/chat/embed/?website_id=189afeb5-0aef-4ca8-9b66-4f7951fc7d34) or email us : contact@carbone.io
+-	  **Where to get help**:  [Chat with us](https://go.crisp.chat/chat/embed/?website_id=189afeb5-0aef-4ca8-9b66-4f7951fc7d34) or email us : contact@carbone.io
 
 ## What is Carbone?
+
+![logo](https://carbone-media.s3.us-east-1.amazonaws.com/20240213_logo_V3_200px.png)
 
 Carbone is a simple and efficient tool that allows you to generate all your documents.
 Send a template file and a JSON dataset, and the engine will return the document with all the data inside. Many formats are supported: PDF, ODT, DOCX, XLSX, HTML, XML, PPTX, JPG, PNG, TXT, CSV, EPUB, IDML, ODS, PPTX, ODG, and ODP.
 
-![logo](https://carbone.io/img/carbone_icon_v3_github.png)
+## Build
+
+### Build slim variant
+
+Minimal version of Carbone. This image does not include Libreoffice (no PDF generation possible). You can use this image to run Carbone with the LibreOffice version of your choice.
+
+```bash
+export CARBONE_VERSION=4.25.0
+
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:$CARBONE_VERSION-slim --attest type=provenance,mode=max --sbom=true -f ./Dockerfile-slim .
+```
+
+### Build full variant
+
+Full version of Carbone including the latest version of LibreOffice
+
+```bash
+export CARBONE_VERSION=4.25.0
+
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:full-$CARBONE_VERSION --attest type=provenance,mode=max --sbom=true -f ./Dockerfile .
+```
+
+### Build fonts variant
+
+Full version of Carbone including the latest version of LibreOffice. This version also includes all [Google Fonts](https://fonts.google.com) (royalty-free).
+
+```bash
+export CARBONE_VERSION=4.25.0
+
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:full-$CARBONE_VERSION-fonts --attest type=provenance,mode=max --sbom=true -f ./Dockerfile-fonts .
+```
 
 ## How to use this image
 
@@ -59,11 +74,6 @@ You can then call Carbone API ([Full API documentation](https://carbone.io/api-r
 ```console
 curl http://host-ip:4000/status
 ```
-### Carbone Images Tags and Versions
-
-For each version of Carbone, it exists two image variations
-- **carbone/carbone-ee:latest** : Latest version of Carbone containing only standard Debian fonts.
-- **carbone/carbone-ee:latest-fonts** : Latest version of Carbone containing standard Debian fonts and all [Google Fonts](https://fonts.google.com) (royalty-free).
 
 ### Run Carbone via [`docker-compose`](https://github.com/docker/compose)
 
@@ -109,68 +119,3 @@ You can also save `templates` and `renders` (generated documents), a storage spa
 ### Port Mapping
 
 Standard port mappings can be used if you'd like to access the instance from the host without the container's IP. Add `-p 4000:4000` to the `docker run` arguments and then access either `http://localhost:4000` or `http://host-ip:4000` in a browser.
-
-### Environment Variables
-
-#### `CARBONE_EE_LICENSE `
-
-License as a string, if the option is used, default license path (/app/config/*.carbone-license) is skipped
-
-#### `CARBONE_EE_FACTORIES`
-
-Multithread parameter, number of LibreOffice converter
-
-#### `CARBONE_EE_WORKDIR`
-
-The value must be a path; it defines the place to store resources. Carbone on startup creates six directories:
-- `template`: directory that stores templates
-- `render`: directory that stores generated documents
-- `config`: directory that includes the config file, licenses and ES512 keys for authentication
-- `plugin`: directory for custom plugins
-- `asset`: internal used only
-
-#### `CARBONE_EE_AUTHENTICATION`
-
-Authentification documentation at the following [link](https://carbone.io/on-premise.html#server-authentication)
-
-#### `CARBONE_EE_STUDIO`
-
-Web interface to preview reports.
-
-#### `CARBONE_EE_STUDIOUSER`
-
-If the authentication option is enabled, the browser requests an authentication to access the web page. Credentials must be formated with the following format: [username]:[password].
-
-#### `CARBONE_EE_MAXDATASIZE`
-
-The maximum JSON data size accepted when rendering a report is bytes. Calcul example: 100 * 1024 * 1024 = 100MB
-
-#### `CARBONE_EE_TEMPLATEPATHRETENTION`
-
-Template path retention in days. 0 means infinite retention.
-
-#### `CARBONE_EE_EN`
-
-Locale language used by Carbone
-
-#### `CARBONE_EE_TIMEZONE`
-
-Timezone for managing dates
-
-#### `CARBONE_EE_CURRENCYSOURCE`
-
-Currency source for money conversion. If empty, it depends on the locale.
-
-#### `CARBONE_EE_CURRENCYTARGET`
-
-Currency target for money conversion. If empty, it depends on the locale.
-
-#### `CARBONE_EE_CONVERTERFACTORYTIMEOUT`
-
-Maximum conversion/socket timeout for one render (unit: ms) (default 60000)
-
-## Image variants
-
-### ```carbone-ee:<version>-fonts```
-
-This version includes all free Google Fonts.

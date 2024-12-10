@@ -1,6 +1,6 @@
 FROM debian:stable-slim AS downloader
 ARG TARGETARCH
-ARG LO_VERSION="24.8.2.1"
+ARG LO_VERSION="24.8.3.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
@@ -9,7 +9,7 @@ FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="4.23.7"
+ARG CARBONE_VERSION="4.25.0"
 
 WORKDIR /tmp
 RUN apt update && \
@@ -30,8 +30,8 @@ ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-e
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
 # Include plugins
-COPY --chown=carbone:nogroup ./carbone-ee-plugin-s3 /app/plugin-s3/
-COPY --chown=carbone:nogroup ./carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
+#COPY --chown=carbone:nogroup ./carbone-ee-plugin-s3 /app/plugin-s3/
+#COPY --chown=carbone:nogroup ./carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
 
 # Download and install LibreOffice
 RUN --mount=type=bind,from=downloader,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
@@ -49,6 +49,8 @@ RUN fc-cache -f -v
 USER carbone
 
 RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin
+
+EXPOSE 4000/tcp
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 
