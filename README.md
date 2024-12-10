@@ -2,6 +2,8 @@
 
 ## Quick reference
 
+-   **Docker image**: [Carbone Reference images](https://hub.docker.com/r/carbone/carbone-ee)
+
 - 	**Maintained by**:  [Carbone Team](https://carbone.io)
 
 - 	**Documentation**: [On-premise install, options and plugins](https://carbone.io/on-premise.html)
