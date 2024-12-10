@@ -6,7 +6,7 @@
 
 - 	**Documentation**: [On-premise install, options and plugins](https://carbone.io/on-premise.html)
 
--	  **Where to get help**:  [Chat with us](https://go.crisp.chat/chat/embed/?website_id=189afeb5-0aef-4ca8-9b66-4f7951fc7d34) or email us : contact@carbone.io
+-   **Where to get help**:  [Chat with us](https://go.crisp.chat/chat/embed/?website_id=189afeb5-0aef-4ca8-9b66-4f7951fc7d34) or email us : contact@carbone.io
 
 ## What is Carbone?
 
