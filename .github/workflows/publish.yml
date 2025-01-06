@@ -7,12 +7,12 @@ on:
           type: string
           description: Version number. Tag in libreoffice repository
           required: true
-          default: "24.8.2.1"
+          default: "24.8.3.2"
         carbone_version:
           type: string
           description: Version of Carbone-ee
           required: true
-          default: "4.23.6"
+          default: "4.25.0"
 
 jobs:
   build:
@@ -21,30 +21,6 @@ jobs:
     -
       name: Checkout
       uses: actions/checkout@v4
-
-    -
-      name: Checkout s3 plugin
-      uses: actions/checkout@v4
-      with:
-        repository: carboneio/carbone-ee-plugin-s3
-        path: carbone-ee-plugin-s3
-        ref: master
-
-    -
-        name: Checkout azure plugin
-        uses: actions/checkout@v4
-        with:
-            repository: carboneio/carbone-ee-plugin-azure-storage-blob
-            path: carbone-ee-plugin-azure-storage-blob
-            ref: master
-
-    -
-      name: Install S3 plugin dependency
-      run: cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
-
-    -
-      name: Install Azure plugin dependency
-      run: cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
 
     -
       name: Login to Docker Hub

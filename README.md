@@ -2,7 +2,7 @@
 
 ## Quick reference
 
--   **Docker image**: [Carbone Reference images](https://hub.docker.com/r/carbone/carbone-ee)
+-   **Docker images**: [Carbone Reference images](https://hub.docker.com/r/carbone/carbone-ee)
 
 - 	**Maintained by**:  [Carbone Team](https://carbone.io)
 

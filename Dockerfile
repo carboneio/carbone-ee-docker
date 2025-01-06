@@ -5,6 +5,14 @@ ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
 
+FROM node:18 AS s3_plugin_install
+RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
+	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
+
+FROM node:18 AS azure_plugin_install
+RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
+	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
+
 FROM debian:stable-slim
 
 ARG TARGETPLATFORM
@@ -32,8 +40,8 @@ ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-e
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
 # Include plugins
-COPY --chown=carbone:nogroup ./carbone-ee-plugin-s3 /app/plugin-s3/
-COPY --chown=carbone:nogroup ./carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
+COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
+COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
 
 # Download and install LibreOffice
 RUN --mount=type=bind,from=downloader,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
