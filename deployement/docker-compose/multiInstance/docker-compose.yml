@@ -1,0 +1,33 @@
+version: "3.9"
+services:
+  carbone:
+    image: "carbone/carbone-ee:full"
+    ports:
+      - "4000"
+    deploy:
+      replicas: 3
+    secrets:
+      - source: carbone-license
+        target: /app/config/license.carbone-license
+      - source: carbone-publickey
+        target: /app/config/key.pub
+    environment:
+      - CARBONE_EE_STUDIO=true
+      - CARBONE_EE_AUTHENTICATION=true
+      - CARBONE_EE_STUDIOUSER=toto:Passw0rd
+    volumes:
+      - ./template:/app/template
+      - ./render:/app/render
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - carbone
+    ports:
+      - "4000:4000"
+secrets:
+  carbone-license:
+    file: license.carbone-license
+  carbone-publickey:
+    file: key.pub  

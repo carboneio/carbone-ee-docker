@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  carbone:
+    image: carbone
+    build : ./
+    ports:
+      - "4000:4000"
+    secrets:
+      - source: carbone-license
+        target: /app/config/license.carbone-license
+    environment:
+      - CARBONE_EE_STUDIO=true
+    volumes:
+      - ./template:/app/template
+secrets:
+  carbone-license:
+    file: license.carbone-license
+  
