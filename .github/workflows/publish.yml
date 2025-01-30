@@ -7,12 +7,17 @@ on:
           type: string
           description: Version number. Tag in libreoffice repository
           required: true
-          default: "24.8.3.2"
+          default: "24.8.4.2"
+        oo_version:
+          type: string
+          description: OnlyOffice version
+          required: true
+          default: "8.2.2"
         carbone_version:
           type: string
           description: Version of Carbone-ee
           required: true
-          default: "4.25.0"
+          default: "5.0.0-beta.2"
 
 jobs:
   build:
@@ -60,10 +65,11 @@ jobs:
         build-args: |
           CARBONE_VERSION=${{ inputs.carbone_version }}
           LO_VERSION=${{ inputs.lo_version }}
+          OO_VERSION=${{ inputs.oo_version }}
         file: ./Dockerfile
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-O8.2
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
 
     -
@@ -89,8 +95,9 @@ jobs:
         build-args: |
           CARBONE_VERSION=${{ inputs.carbone_version }}
           LO_VERSION=${{ inputs.lo_version }}
+          OO_VERSION=${{ inputs.oo_version }}
         file: ./Dockerfile-fonts
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-O8.2-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts

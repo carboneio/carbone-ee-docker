@@ -7,7 +7,7 @@ ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION
 
 FROM debian:stable-slim AS downloader_onlyoffice
 ARG TARGETARCH
-ARG OO_VERSION="8.1.3"
+ARG OO_VERSION="8.2.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb /onlyoffice.deb
 
