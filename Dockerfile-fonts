@@ -35,10 +35,6 @@ ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-e
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Include plugins
-COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
-COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
-
 # Download and install LibreOffice
 RUN --mount=type=bind,from=downloader,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
 	tar -zxf /tmp/libreoffice.tar.gz && \
