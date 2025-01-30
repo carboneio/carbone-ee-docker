@@ -1,23 +1,21 @@
-FROM debian:stable-slim AS downloader
+FROM debian:stable-slim AS downloader_libreoffice
 ARG TARGETARCH
-ARG LO_VERSION="24.8.3.2"
+ARG LO_VERSION="24.8.4.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
 
-FROM node:18 AS s3_plugin_install
-RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
-	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
-
-FROM node:18 AS azure_plugin_install
-RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
-	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
+FROM debian:stable-slim AS downloader_onlyoffice
+ARG TARGETARCH
+ARG OO_VERSION="8.1.3"
+ARG ARCH=${TARGETARCH/arm64/aarch64}
+ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb /onlyoffice.deb
 
 FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="4.25.0"
+ARG CARBONE_VERSION="5.0.0-beta.2"
 
 LABEL carbone.version=${CARBONE_VERSION}
 
@@ -39,19 +37,23 @@ ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-e
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Include plugins
-COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
-COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
-
 # Download and install LibreOffice
-RUN --mount=type=bind,from=downloader,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
+RUN --mount=type=bind,from=downloader_libreoffice,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
 	tar -zxf /tmp/libreoffice.tar.gz && \
 	dpkg -i LibreOffice*_Linux_*_deb/DEBS/*.deb && \
 	rm -r LibreOffice*
 
+# Install onlyoffice
+ENV CARBONE_EE_ONLYOFFICEPATH=auto
+RUN --mount=type=bind,from=downloader_onlyoffice,target=/tmp/onlyoffice.deb,source=onlyoffice.deb \
+	dpkg -i /tmp/onlyoffice.deb
+
 # Include basic fonts
 COPY --chown=carbone:nogroup fonts /usr/share/fonts/
 RUN fc-cache -f -v
+
+# Prepare Onlyoffice font cache
+RUN /opt/onlyoffice-converter-standalone/documentserver/documentserver-generate-allfonts.sh
 
 USER carbone
 

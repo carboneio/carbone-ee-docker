@@ -48,7 +48,6 @@ jobs:
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim-${{ inputs.carbone_version }}
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim
 
     -
       name: Buildx and push full variant
@@ -66,8 +65,6 @@ jobs:
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest
 
     -
       name: Checkout fonts
@@ -97,5 +94,3 @@ jobs:
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts

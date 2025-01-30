@@ -1,16 +1,8 @@
-FROM node:18 AS s3_plugin_install
-RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
-	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
-
-FROM node:18 AS azure_plugin_install
-RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
-	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
-
 FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="4.25.0"
+ARG CARBONE_VERSION="5.0.0-beta.2"
 
 WORKDIR /tmp
 RUN apt update && \
@@ -30,9 +22,9 @@ ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-e
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Include plugins
-COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
-COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
+# Include plugins - DISABLE on V5
+#COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
+#COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
 
 # Include basic fonts
 COPY --chown=carbone:nogroup fonts /usr/share/fonts/
