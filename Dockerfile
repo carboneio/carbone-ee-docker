@@ -1,27 +1,31 @@
+ARG CHROME_VERSION="134.0.6998.166"
+
 FROM debian:stable-slim AS downloader_libreoffice
 ARG TARGETARCH
-ARG LO_VERSION="24.8.4.2"
+ARG LO_VERSION="25.2.0.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
 
 FROM debian:stable-slim AS downloader_onlyoffice
 ARG TARGETARCH
-ARG OO_VERSION="8.2.2"
+ARG OO_VERSION="8.3.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb /onlyoffice.deb
+
+FROM chromedp/headless-shell:${CHROME_VERSION} AS downloader_chrome-headless
 
 FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="5.0.0-beta.2"
+ARG CARBONE_VERSION="5.0.0-beta.6"
 
 LABEL carbone.version=${CARBONE_VERSION}
 
 WORKDIR /tmp
 RUN apt update && \
-    apt install -y libfreetype6 fontconfig libgssapi-krb5-2 && \
+    apt install -y libfreetype6 fontconfig libgssapi-krb5-2 unzip && \
     rm -rf /var/lib/apt/lists/*
 
 # Create Carbone user
@@ -47,6 +51,15 @@ RUN --mount=type=bind,from=downloader_libreoffice,target=/tmp/libreoffice.tar.gz
 ENV CARBONE_EE_ONLYOFFICEPATH=auto
 RUN --mount=type=bind,from=downloader_onlyoffice,target=/tmp/onlyoffice.deb,source=onlyoffice.deb \
 	dpkg -i /tmp/onlyoffice.deb
+
+# Install Chrome
+ENV CARBONE_EE_CHROMEPATH=/opt/headless-shell/headless-shell
+RUN --mount=type=bind,from=downloader_chrome-headless,target=/tmp/headless-shell,source=headless-shell \
+	cp -r /tmp/headless-shell /opt/headless-shell && \
+	apt update && \
+	apt install -y libnspr4 libnss3 libexpat1 libfontconfig1 libuuid1 socat && \
+	apt-get clean && \
+	rm -rf /var/lib/apt/lists/*
 
 # Include basic fonts
 COPY --chown=carbone:nogroup fonts /usr/share/fonts/
