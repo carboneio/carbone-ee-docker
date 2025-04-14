@@ -7,7 +7,7 @@ on:
           type: string
           description: Version number. Tag in libreoffice repository
           required: true
-          default: "25.2.0.2"
+          default: "25.2.3.1"
         oo_version:
           type: string
           description: OnlyOffice version
@@ -22,12 +22,23 @@ on:
           type: string
           description: Version of Carbone-ee
           required: true
-          default: "5.0.0-beta.6"
+          default: "5.0.0-beta.7"
+        target_platforms:
+          type: string
+          description: target platforms
+          required: true
+          default: "linux/amd64,linux/arm64"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - name: Get LO major version
+      id: getMajorVersion
+      env:
+        LO_MAJOR_VERSION: ${{ inputs.lo_version }}
+      run: echo "libreOfficeMajorVersion=${LO_MAJOR_VERSION%.*.*}" >> $GITHUB_OUTPUT
+
     -
       name: Checkout
       uses: actions/checkout@v4
@@ -42,13 +53,13 @@ jobs:
       name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       with:
-        platforms: linux/amd64,linux/arm64
+        platforms: ${{ inputs.target_platforms }}
       
     -
       name: Buildx and push slim variant
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/amd64,linux/arm64
+        platforms: ${{ inputs.target_platforms }}
         context: ./
         provenance: mode=max
         sbom: true
@@ -63,7 +74,7 @@ jobs:
       name: Buildx and push full variant
       uses: docker/build-push-action@v6
       with:
-        platforms: linux/amd64,linux/arm64
+        platforms: ${{ inputs.target_platforms }}
         context: ./
         provenance: mode=max
         sbom: true
@@ -75,7 +86,7 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L25.2-O8.3-C134
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O8.3-C134
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
 
     -
@@ -106,5 +117,5 @@ jobs:
         file: ./Dockerfile-fonts
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L25.2-O8.3-C134-fonts
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O8.3-C134-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
