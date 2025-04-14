@@ -25,7 +25,9 @@ jobs:
     steps:
     - name: Get LO major version
       id: getMajorVersion
-      run: echo "libreOfficeMajorVersion=${inputs.lo_version%.*.*}"
+      env:
+        LO_MAJOR_VERSION: ${{ inputs.lo_version }}
+      run: echo "libreOfficeMajorVersion=${LO_MAJOR_VERSION%.*.*}"
 
     -
       name: Checkout
