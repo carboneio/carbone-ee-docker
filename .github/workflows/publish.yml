@@ -12,7 +12,7 @@ on:
           type: string
           description: Version of Carbone-ee
           required: true
-          default: "4.25.0"
+          default: "4.25.7"
         target_platforms:
           type: string
           description: target platforms
@@ -23,6 +23,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - name: Get LO major version
+      id: getMajorVersion
+      run: echo "libreOfficeMajorVersion=${inputs.lo_version%.*.*}"
+
     -
       name: Checkout
       uses: actions/checkout@v4
@@ -69,7 +73,7 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest
@@ -100,7 +104,7 @@ jobs:
         file: ./Dockerfile-fonts
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L24.8-fonts
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts
