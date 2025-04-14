@@ -27,7 +27,7 @@ jobs:
       id: getMajorVersion
       env:
         LO_MAJOR_VERSION: ${{ inputs.lo_version }}
-      run: echo "libreOfficeMajorVersion=${LO_MAJOR_VERSION%.*.*}"
+      run: echo "libreOfficeMajorVersion=${LO_MAJOR_VERSION%.*.*}" >> $GITHUB_OUTPUT
 
     -
       name: Checkout
