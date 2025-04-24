@@ -17,7 +17,7 @@ on:
           type: string
           description: Chrome version
           required: true
-          default: "134.0.6998.166"
+          default: "135.0.7049.115"
         carbone_version:
           type: string
           description: Version of Carbone-ee
