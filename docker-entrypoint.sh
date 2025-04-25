@@ -17,7 +17,9 @@ if [ ! -e $CONTAINER_ALREADY_STARTED ]; then
 fi
 
 ## Set public key (for V5 compatibility)
-mkdir /app/config
-echo -e $CARBONE_AUTHENTICATION_PUBLIC_KEY > /app/config/key.pub
+if [ -z ${CARBONE_AUTHENTICATION_PUBLIC_KEY} ]; then
+    mkdir /app/config
+    echo -e $CARBONE_AUTHENTICATION_PUBLIC_KEY > /app/config/key.pub
+fi
 
 exec ./carbone-ee-linux $@
