@@ -15,6 +15,14 @@ ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_
 
 FROM chromedp/headless-shell:${CHROME_VERSION} AS downloader_chrome-headless
 
+FROM node:18 AS s3_plugin_install
+RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
+	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
+
+FROM node:18 AS azure_plugin_install
+RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
+	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
+
 FROM debian:stable-slim
 
 ARG TARGETPLATFORM
@@ -40,6 +48,10 @@ WORKDIR ${APP_ROOT}
 ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
+
+# Include plugins
+COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
+COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
 
 # Download and install LibreOffice
 RUN --mount=type=bind,from=downloader_libreoffice,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
