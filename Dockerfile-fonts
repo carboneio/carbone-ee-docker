@@ -15,11 +15,11 @@ ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_
 
 FROM chromedp/headless-shell:${CHROME_VERSION} AS downloader_chrome-headless
 
-FROM node:18 AS s3_plugin_install
+FROM node:22 AS s3_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
 	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
 
-FROM node:18 AS azure_plugin_install
+FROM node:22 AS azure_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
 	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
 
