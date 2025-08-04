@@ -3,18 +3,21 @@
 CARBONE_USE_S3_PLUGIN=${CARBONE_USE_S3_PLUGIN:-true}
 
 CARBONE_EE_WORKDIR=${CARBONE_EE_WORKDIR:-/app}
+if [ $CARBONE_EE_WORKDIR != "/app" ]; then
+    mkdir ${CARBONE_EE_WORKDIR}
+fi
 
 CONTAINER_ALREADY_STARTED="CONTAINER_ALREADY_STARTED_PLACEHOLDER"
 if [ ! -e $CONTAINER_ALREADY_STARTED ]; then
     touch $CONTAINER_ALREADY_STARTED
     if [ "$CARBONE_USE_AZURE_PLUGIN" = true ]; then
         echo "Configuring Carbone with Azure plugin"
-        cp -r ${CARBONE_EE_WORKDIR}/plugin-azure/node_modules ${CARBONE_EE_WORKDIR}/plugin/
-        cp -r ${CARBONE_EE_WORKDIR}/plugin-azure/*.js ${CARBONE_EE_WORKDIR}/plugin/
+        cp -r /app/plugin-azure/node_modules ${CARBONE_EE_WORKDIR}/plugin/
+        cp -r /app/plugin-azure/*.js ${CARBONE_EE_WORKDIR}/plugin/
     elif [ "$CARBONE_USE_S3_PLUGIN" = true ]; then
         echo "Configuring Carbone with S3 plugin"
-        cp -r ${CARBONE_EE_WORKDIR}/plugin-s3/node_modules ${CARBONE_EE_WORKDIR}/plugin/
-        cp -r ${CARBONE_EE_WORKDIR}/plugin-s3/*.js ${CARBONE_EE_WORKDIR}/plugin/
+        cp -r /app/plugin-s3/node_modules ${CARBONE_EE_WORKDIR}/plugin/
+        cp -r /app/plugin-s3/*.js ${CARBONE_EE_WORKDIR}/plugin/
     fi
 fi
 
