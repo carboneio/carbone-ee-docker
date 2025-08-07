@@ -25,7 +25,7 @@ fi
 ## if disable, we force no-sandbox mode
 SYS_ADMIN=`setpriv -d | grep sys_admin`
 if [ "$SYS_ADMIN" = "" ]; then
-    CARBONE_CHROME_FLAGS="--no-sandbox"
+    export CARBONE_CHROME_FLAGS="--no-sandbox"
     echo "Running Chrome without sandbox"
 else
     echo "Running Chrome with sandbox"
