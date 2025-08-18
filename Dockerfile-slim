@@ -18,7 +18,7 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 # Create Carbone user
-RUN adduser carbone --home /app --no-create-home --disabled-password --system
+RUN useradd -d /app carbone
 
 # Copy the local binary into the image folder "app"
 ENV APP_ROOT=/app/
