@@ -1,0 +1,28 @@
+services:
+  carbone:
+    image: "carbone/carbone-ee:latest"
+    ports:
+      - "4000"
+    secrets:
+      - source: carbone-license
+        target: /app/config/license.carbone-license
+    environment:
+      - CARBONE_EE_STUDIO=true
+      - CARBONE_EE_AUTHENTICATION=false
+    volumes:
+      - ./template:/app/template
+      - ./render:/app/render
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./privkey.pem:/etc/nginx/ssl/privkey.pem
+      - ./cert.pem:/etc/nginx/ssl/cert.pem
+    depends_on:
+      - carbone
+    ports:
+      - "80:80"
+      - "443:443"
+secrets:
+  carbone-license:
+    file: license.carbone-license

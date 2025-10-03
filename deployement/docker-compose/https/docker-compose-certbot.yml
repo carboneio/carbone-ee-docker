@@ -1,0 +1,33 @@
+services:
+  carbone:
+    image: "carbone/carbone-ee:latest"
+    ports:
+      - "4000"
+    secrets:
+      - source: carbone-license
+        target: /app/config/license.carbone-license
+    environment:
+      - CARBONE_EE_STUDIO=true
+      - CARBONE_EE_AUTHENTICATION=false
+    volumes:
+      - ./template:/app/template
+      - ./render:/app/render
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx-certbot.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/www:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+    depends_on:
+      - carbone
+    ports:
+      - "80:80"
+      - "443:443"
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+secrets:
+  carbone-license:
+    file: license.carbone-license
