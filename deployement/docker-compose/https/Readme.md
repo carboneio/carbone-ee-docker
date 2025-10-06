@@ -14,33 +14,33 @@ Then set server_name in nginx.conf.
 Copy server certificat in ./cert.pem and private key in privkey.pem
 
 Finally run :
-`
+```bash
 docker-compose up
-`
+```
 
 ## Enable HTTPS with Certbot
 
 You can use letsencrypt to provide free certificat.
 
 To create private key and certificate :
-`
+```bash
 # Start containers
 docker compose -f docker-compose-certbot.yml restart
 
-# And dry-run certbot
+# Dry-run certbot
 docker compose -f docker-compose-certbot.yml run --rm  certbot certonly --webroot --webroot-path /var/www/certbot/ --dry-run -d **** YOUR HOSTNAME****
 
-# Is success
+# If success
 docker compose -f docker-compose-certbot.yml run --rm  certbot certonly --webroot --webroot-path /var/www/certbot/ -d **** YOUR HOSTNAME****
-`
+```
 
 Then set **** YOUR HOSTNAME**** in nginx-certbot.conf.
 And uncomment server 443 configuration in nginx-certbot.conf and run:
-`
+```bash
 docker compose -f docker-compose-certbot.yml restart
-`
+```
 
 To renew certificat :
-`
+```bash
 docker compose -f docker-compose-certbot.yml run --rm certbot renew
-`
+```
