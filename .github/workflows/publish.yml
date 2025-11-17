@@ -93,7 +93,7 @@ jobs:
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
-          latest
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest
 
     -
       name: Checkout fonts
@@ -125,4 +125,4 @@ jobs:
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
-          latest-fonts
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts
