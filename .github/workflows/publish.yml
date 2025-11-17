@@ -33,11 +33,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Get LO major version
+    - name: Get dep major version
       id: getMajorVersion
       env:
-        LO_MAJOR_VERSION: ${{ inputs.lo_version }}
-      run: echo "libreOfficeMajorVersion=${LO_MAJOR_VERSION%.*.*}" >> $GITHUB_OUTPUT
+        LO_FULL_VERSION: ${{ inputs.lo_version }}
+        OO_FULL_VERSION: ${{ inputs.oo_version }}
+        CHROME_FULL_VERSION: ${{ inputs.chrome_version }}
+      run: |
+        echo "libreOfficeMajorVersion=${LO_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
+        echo "onlyOfficeMajorVersion=${OO_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
+        echo "chromeMajorVersion=${CHROME_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
 
     -
       name: Checkout
@@ -69,6 +74,7 @@ jobs:
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim-${{ inputs.carbone_version }}
+          latest-slim
 
     -
       name: Buildx and push full variant
@@ -86,8 +92,9 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O9.0-C138
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
+          latest
 
     -
       name: Checkout fonts
@@ -117,5 +124,6 @@ jobs:
         file: ./Dockerfile-fonts
         push: true
         tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O9.0-C138-fonts
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
+          latest-fonts

@@ -1,15 +1,15 @@
-ARG CHROME_VERSION="134.0.6998.166"
+ARG CHROME_VERSION="141.0.7390.55"
 
 FROM debian:stable-slim AS downloader
 ARG TARGETARCH
-ARG LO_VERSION="25.2.0.2"
+ARG LO_VERSION="25.2.7.2"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
 
 FROM debian:stable-slim AS downloader_onlyoffice
 ARG TARGETARCH
-ARG OO_VERSION="8.3.2"
+ARG OO_VERSION="9.0.4"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb /onlyoffice.deb
 
@@ -27,7 +27,7 @@ FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="5.0.0-beta.6"
+ARG CARBONE_VERSION="5.0.3"
 
 WORKDIR /tmp
 RUN apt update && \
