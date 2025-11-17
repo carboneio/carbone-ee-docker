@@ -41,8 +41,8 @@ jobs:
         CHROME_FULL_VERSION: ${{ inputs.chrome_version }}
       run: |
         echo "libreOfficeMajorVersion=${LO_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
-        echo "onlyOfficeMajorVersion=${OO_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
-        echo "chromeMajorVersion=${CHROME_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
+        echo "onlyOfficeMajorVersion=${OO_FULL_VERSION%.*}" >> $GITHUB_OUTPUT
+        echo "chromeMajorVersion=${CHROME_FULL_VERSION%.*.*.*}" >> $GITHUB_OUTPUT
 
     -
       name: Checkout
