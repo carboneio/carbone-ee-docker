@@ -51,6 +51,11 @@ COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypo
 COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
 COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
 
+# Include basic fonts
+COPY --chown=carbone:nogroup fonts /usr/share/fonts/
+COPY carbone-fonts /usr/share/fonts/carbone-fonts
+RUN fc-cache -f -v
+
 # Download and install LibreOffice
 RUN --mount=type=bind,from=downloader,target=/tmp/libreoffice.tar.gz,source=libreoffice.tar.gz \
 	tar -zxf /tmp/libreoffice.tar.gz && \
@@ -70,16 +75,6 @@ RUN --mount=type=bind,from=downloader_chrome-headless,target=/tmp/headless-shell
        apt install -y libnspr4 libnss3 libexpat1 libfontconfig1 libuuid1 socat && \
        apt-get clean && \
        rm -rf /var/lib/apt/lists/*
-
-# Include basic fonts
-COPY --chown=carbone:nogroup fonts /usr/share/fonts/
-
-COPY carbone-fonts /usr/share/fonts/carbone-fonts
-
-RUN fc-cache -f -v
-
-# Prepare Onlyoffice font cache
-RUN /opt/onlyoffice-converter-standalone/documentserver/documentserver-generate-allfonts.sh
 
 USER carbone
 
