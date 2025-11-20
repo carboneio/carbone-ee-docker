@@ -297,8 +297,8 @@ resource "aws_efs_access_point" "template-access" {
     path = "/template"
     creation_info {
       permissions = 766
-      owner_gid = 65534
-      owner_uid = 100
+      owner_gid = 1000
+      owner_uid = 1000
     }
   }
   tags = {
@@ -312,8 +312,8 @@ resource "aws_efs_access_point" "render-access" {
     path = "/render"
     creation_info {
       permissions = 766
-      owner_gid = 65534
-      owner_uid = 100
+      owner_gid = 1000
+      owner_uid = 1000
     }
   }
   tags = {
