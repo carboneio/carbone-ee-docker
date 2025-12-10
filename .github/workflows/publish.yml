@@ -30,8 +30,47 @@ on:
           default: "linux/amd64,linux/arm64"
 
 jobs:
-  build:
+  start-external-builder:
+    name: Start self-hoster EC2 runner
     runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0ef9bcd5dfb57b968
+          ec2-instance-type: t3.medium
+          subnet-id: subnet-027c65f285842519c
+          security-group-id: sg-0ffdee926e8fcecc2
+          iam-role-name: EC2-SSM # optional, requires additional permissions
+          aws-resource-tags: > # optional, requires additional permissions
+            [
+              {"Key": "Name", "Value": "ec2-github-runner"},
+              {"Key": "ST", "Value": "Carbone-docker-Builder"},
+              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
+            ]
+          pre-runner-script: |
+            apt-get update
+            apt-get install -y docker.io unzip curl
+            usermod -aG docker ubuntu
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            ./aws/install
+
+  build:
+    needs: start-external-builder
+    runs-on: ${{ needs.start-external-builder.outputs.label }}
     steps:
     - name: Get dep major version
       id: getMajorVersion
@@ -43,6 +82,20 @@ jobs:
         echo "libreOfficeMajorVersion=${LO_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
         echo "onlyOfficeMajorVersion=${OO_FULL_VERSION%.*}" >> $GITHUB_OUTPUT
         echo "chromeMajorVersion=${CHROME_FULL_VERSION%.*.*.*}" >> $GITHUB_OUTPUT
+
+    - name: Expand root volume
+      run: |
+        TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+        INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+        VOLUME_ID=$(aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=$INSTANCE_ID | jq -r .Volumes[0].Attachments[0].VolumeId)
+        echo $INSTANCE_ID
+        echo $VOLUME_ID
+        aws ec2 modify-volume --volume-id $VOLUME_ID --size 32
+        sleep 15  # let it update
+        growpart /dev/nvme0n1 1
+        lsblk
+        resize2fs  /dev/nvme0n1p1
+        df -hT
 
     -
       name: Checkout
@@ -59,7 +112,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
       with:
         platforms: ${{ inputs.target_platforms }}
-      
+
     -
       name: Buildx and push slim variant
       uses: docker/build-push-action@v6
@@ -127,3 +180,24 @@ jobs:
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts
+  stop-arm-builder:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-external-builder # required to get output from the start-runner job
+      - build # required to wait when the main job is doen
+    runs-on: ubuntu-latest
+    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-external-builder.outputs.label }}
+          ec2-instance-id: ${{ needs.start-external-builder.outputs.ec2-instance-id }}
