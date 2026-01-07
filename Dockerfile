@@ -82,7 +82,7 @@ RUN /opt/onlyoffice-converter-standalone/documentserver/documentserver-generate-
 
 USER carbone
 
-RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin
+RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin && mkdir /app/database
 
 EXPOSE 4000/tcp
 
