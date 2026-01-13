@@ -12,9 +12,43 @@ terraform {
 
 # Configure the AWS Provider
 provider "aws" {
-  region = "eu-west-3"
+  region = var.region
   profile = "ecs"
 }
+
+##########################
+## Variable
+##########################
+variable "region" {
+  description = "AWS region to use for this deployement"  
+  type = string
+  default = "us-east-1"
+}
+
+variable "template_storage" {
+  description = "Save template on persistent place"  
+  type = bool
+  default = true
+}
+
+variable "render_storage" {
+  description = "Save render on shared place"  
+  type = bool
+  default = false
+}
+
+variable "efs_storage" {
+  description = "Use EFS share for perssistency"  
+  type = bool
+  default = true
+}
+
+variable "s3_storage" {
+  description = "Use S3 share for perssistency" 
+  type = bool
+  default = false
+}
+
 ##########################
 ## Network configuration
 ##########################
@@ -243,15 +277,24 @@ resource "aws_iam_role_policy_attachment" "carbone_SecretAccess_policy" {
 ## Persistance Data configuration
 ###################################
 resource "aws_efs_file_system" "carbone-shared-storage" {
+  count = var.efs_storage == true ? 1 : 0
   creation_token = "carbone-persistant-storage"
   encrypted = true
 
   tags = {
     Name = "Carbone Persistant Storage"
   }
+
+  lifecycle {
+    precondition {
+      condition = var.render_storage || var.template_storage
+      error_message = "No need to set efs storage. Please set efs_storage variable to false"
+    }
+  }
 }
 
 resource "aws_security_group" "carbone_efs" {
+  count = var.efs_storage == true ? 1 : 0
   name        = "Carbone EFS"
   description = "Allow NFS inbound traffic"
   vpc_id      = aws_vpc.carbone-vpc.id
@@ -280,19 +323,22 @@ resource "aws_security_group" "carbone_efs" {
 }
 
 resource "aws_efs_mount_target" "efs-mount-az1" {
-  file_system_id = aws_efs_file_system.carbone-shared-storage.id
+  count = var.efs_storage == true ? 1 : 0
+  file_system_id = aws_efs_file_system.carbone-shared-storage[0].id
   subnet_id      = aws_subnet.carbone-private-subnet-AZ1.id
-  security_groups = [ aws_security_group.carbone_efs.id ]
+  security_groups = [ aws_security_group.carbone_efs[0].id ]
 }
 
 resource "aws_efs_mount_target" "efs-mount-az2" {
-  file_system_id = aws_efs_file_system.carbone-shared-storage.id
+  count = var.efs_storage == true ? 1 : 0
+  file_system_id = aws_efs_file_system.carbone-shared-storage[0].id
   subnet_id      = aws_subnet.carbone-private-subnet-AZ2.id
-  security_groups = [ aws_security_group.carbone_efs.id ]
+  security_groups = [ aws_security_group.carbone_efs[0].id ]
 }
 
 resource "aws_efs_access_point" "template-access" {
-  file_system_id = aws_efs_file_system.carbone-shared-storage.id
+  count = var.efs_storage && var.template_storage  ? 1 : 0
+  file_system_id = aws_efs_file_system.carbone-shared-storage[0].id
   root_directory {
     path = "/template"
     creation_info {
@@ -307,7 +353,8 @@ resource "aws_efs_access_point" "template-access" {
 }
 
 resource "aws_efs_access_point" "render-access" {
-  file_system_id = aws_efs_file_system.carbone-shared-storage.id
+  count = var.efs_storage && var.render_storage ? 1 : 0
+  file_system_id = aws_efs_file_system.carbone-shared-storage[0].id
   root_directory {
     path = "/render"
     creation_info {
@@ -319,6 +366,88 @@ resource "aws_efs_access_point" "render-access" {
   tags = {
     Name = "Carbone-render"
   }
+}
+
+resource "aws_s3_bucket" "template_s3_storage" {
+  count = var.s3_storage && var.template_storage ? 1 : 0
+
+  bucket = "carbone-template-bucket-1234"
+
+  lifecycle {
+    precondition {
+      condition = (!var.efs_storage && var.s3_storage) || !var.s3_storage
+      error_message = "Do not set s3_storage in same time than efs_storage"
+    }
+  }
+  
+}
+
+resource "aws_s3_bucket" "render_s3_storage" {
+  count = var.s3_storage && var.render_storage ? 1 : 0
+
+  bucket = "carbone-render-bucket-1234"
+
+  lifecycle {
+    precondition {
+      condition = (!var.efs_storage && var.s3_storage) || !var.s3_storage
+      error_message = "Do not set s3_storage in same time than efs_storage"
+    }
+  }
+}
+
+## Create IAM user
+resource "aws_iam_user" "s3_carbone_user" {
+  count = var.s3_storage ? 1 : 0
+  name = "carbone-s3-user"
+
+  tags = {
+    Name        = "carbone-s3-user"
+    Description = "User to acces to Carbone buckets"
+  }
+}
+
+## Get API key
+resource "aws_iam_access_key" "s3_user_key" {
+  count = var.s3_storage ? 1 : 0
+  user = aws_iam_user.s3_carbone_user[0].name
+}
+
+## Assign policy
+resource "aws_iam_user_policy" "s3_readwrite" {
+  count = var.s3_storage ? 1 : 0
+  name = "carbone-s3-user-policy"
+  user = aws_iam_user.s3_carbone_user[0].name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ListBucket"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = concat(
+          var.template_storage ? [aws_s3_bucket.template_s3_storage[0].arn] : [],
+          var.render_storage ? [aws_s3_bucket.render_s3_storage[0].arn] : [])
+      },
+      {
+        Sid    = "ReadWriteObjects"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:DeleteObjectVersion"
+        ]
+        Resource = concat(
+          var.template_storage ? ["${aws_s3_bucket.template_s3_storage[0].arn}/*"] : [],
+          var.render_storage ? ["${aws_s3_bucket.render_s3_storage[0].arn}/*"] : [])
+      }
+    ]
+  })
 }
 
 ##########################
@@ -340,12 +469,42 @@ resource "aws_ecs_task_definition" "carbone-service" {
       image     = "carbone/carbone-ee:full"
       essential = true
       stopTimeout = 20
-      environment = [
-        { 
+      environment = concat([
+        {
           name = "CARBONE_EE_STUDIO"
           value = "true"
-        }
-      ]
+        }],
+        var.s3_storage ? [
+          {
+            name = "AWS_REGION"
+            value = var.region
+          },
+          {
+            name = "AWS_ENDPOINT_URL"
+            value = "s3.${var.region}.amazonaws.com"
+          },
+          {
+            name = "AWS_ACCESS_KEY_ID"
+            value = aws_iam_access_key.s3_user_key[0].id
+          },
+          {
+            name = "AWS_SECRET_ACCESS_KEY"
+            value = aws_iam_access_key.s3_user_key[0].secret
+          }
+        ] : [],
+        var.template_storage ? [
+          {
+            name = "BUCKET_TEMPLATES"
+            value = aws_s3_bucket.template_s3_storage[0].bucket
+          }
+        ] : [],
+         var.render_storage ? [
+          {
+            name = "BUCKET_RENDERS"
+            value = aws_s3_bucket.render_s3_storage[0].bucket
+          }
+        ] : []
+      )
       secrets = [
         {
             name = "CARBONE_EE_LICENSE"
@@ -367,39 +526,45 @@ resource "aws_ecs_task_definition" "carbone-service" {
           hostPort      = 4000
         }
       ]
-      mountPoints = [
-        {
-          sourceVolume = "template-storage"
-          containerPath = "/app/template"
-          readOnly = false
-        },
-        {
-          sourceVolume = "render-storage"
+      mountPoints = concat(
+        var.render_storage && var.efs_storage ? [{
+          sourceVolume  = "render-storage"
           containerPath = "/app/render"
-          readOnly = false
-        }
-      ]
+          readOnly      = false
+        }] : [],
+        var.template_storage && var.efs_storage ? [{
+          sourceVolume  = "template-storage"
+          containerPath = "/app/templates"
+          readOnly      = false
+        }] : []
+      )
     }
   ])
-  volume {
-    name = "template-storage"
+  dynamic "volume" {
+    for_each = var.efs_storage && var.template_storage ? [1] : []
+    content {
+      name = "template-storage"
 
-    efs_volume_configuration {
-      file_system_id          = aws_efs_file_system.carbone-shared-storage.id
-      transit_encryption      = "ENABLED"
-      authorization_config {
-        access_point_id       = aws_efs_access_point.template-access.id
+      efs_volume_configuration {
+        file_system_id          = aws_efs_file_system.carbone-shared-storage[0].id
+        transit_encryption      = "ENABLED"
+        authorization_config {
+          access_point_id       = aws_efs_access_point.template-access[0].id
+        }
       }
     }
   }
-  volume {
-    name = "render-storage"
+  dynamic "volume" {
+    for_each = var.efs_storage && var.render_storage ? [1] : []
+    content {
+      name = "render-storage"
 
-    efs_volume_configuration {
-      file_system_id          = aws_efs_file_system.carbone-shared-storage.id
-      transit_encryption      = "ENABLED"
-      authorization_config {
-        access_point_id       = aws_efs_access_point.render-access.id
+      efs_volume_configuration {
+        file_system_id          = aws_efs_file_system.carbone-shared-storage[0].id
+        transit_encryption      = "ENABLED"
+        authorization_config {
+          access_point_id       = aws_efs_access_point.render-access[0].id
+        }
       }
     }
   }

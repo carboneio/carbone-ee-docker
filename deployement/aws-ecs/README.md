@@ -6,4 +6,7 @@ To deploy :
 terraform apply"
 ```
 
+## Options
+You can configure deployement by modifying `terraform.tfvars` file.
+
 Enjoy 🎉
