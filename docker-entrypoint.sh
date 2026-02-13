@@ -21,14 +21,19 @@ if [ ! -e $CONTAINER_ALREADY_STARTED ]; then
     fi
 fi
 
-## For Chrome execution, we need first to test if sys_admin cap is enabled
-## if disable, we force no-sandbox mode
-SYS_ADMIN=`setpriv -d | grep sys_admin`
-if [ "$SYS_ADMIN" = "" ]; then
-    export CARBONE_CHROME_FLAGS="--no-sandbox"
-    echo "Running Chrome without sandbox"
+if [ "$CARBONE_DISABLE_CHROME" = true ]; then
+    echo "Chromium converter is disabled"
+    unset CARBONE_EE_CHROMEPATH
 else
-    echo "Running Chrome with sandbox"
+    ## For Chrome execution, we need first to test if sys_admin cap is enabled
+    ## if disable, we force no-sandbox mode
+    SYS_ADMIN=`setpriv -d | grep sys_admin`
+    if [ "$SYS_ADMIN" = "" ]; then
+        export CARBONE_CHROME_FLAGS="--no-sandbox"
+        echo "Running Chrome without sandbox"
+    else
+        echo "Running Chrome with sandbox"
+    fi
 fi
 
 exec ./carbone-ee-linux $@
