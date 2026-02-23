@@ -7,7 +7,7 @@ on:
           type: string
           description: Version number. Tag in libreoffice repository
           required: true
-          default: "25.2.7.2"
+          default: "26.2.1.1"
         oo_version:
           type: string
           description: OnlyOffice version
@@ -22,7 +22,7 @@ on:
           type: string
           description: Version of Carbone-ee
           required: true
-          default: "5.1.0"
+          default: "5.3.0"
         target_platforms:
           type: string
           description: target platforms
