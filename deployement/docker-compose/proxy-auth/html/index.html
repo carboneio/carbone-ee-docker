@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" style="height:100%;">
+ <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Carbone Studio Quick Test</title>
+   <meta name="color-scheme" content="light">
+   <style>
+     html, body { height:100%; margin:0; }
+     carbone-studio { width:100vw; height:100vh; }
+   </style>
+ </head>
+ <body></body>
+ <script src="https://bin.carbone.io/studio/5.1.1/carbone-studio.min.js"></script>
+ <script>
+   // Create and append the studio component, starting in "off" mode for silent initialization
+   const studio = document.createElement('carbone-studio');
+   studio.setAttribute('carbone-mode', 'off');
+   document.body.appendChild(studio);
+
+   window.addEventListener('DOMContentLoaded', () => {
+     studio.setConfig({
+       // Point this to your local Carbone On-Premise instance!
+       origin : 'http://localhost/api',
+       mode   : 'embedded-versioning', // enables versioning features
+
+       fetchOverride    : async (url, options) => {
+            // original browser fetch function
+            console.log ("Fetch URL : " + url);
+            const response = await fetch(url, { ...options, credentials: 'include' });
+
+            if (response.status === 401) {
+              console.warn("Session expirée, redirection vers login...");
+              setTimeout(() => {
+                  window.location.href = '/login';
+              }, 1000); // délai de 1 seconde
+          }
+    
+          return response;
+        }
+     });
+     // Example: open an online test template with some sample data
+     studio.openTemplateURL('http://localhost/template.docx', 'http://localhost/data.json');
+   });
+ </script>
+</html>

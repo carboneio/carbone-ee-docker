@@ -1,0 +1,130 @@
+{
+  "manufacturers": [
+    {
+      "name": "Toyota",
+      "total_sales": 10483024,
+      "models": [
+        {
+          "name": "Toyota RAV4",
+          "sales": 1016000
+        },
+        {
+          "name": "Toyota Corolla",
+          "sales": 992000
+        },
+        {
+          "name": "Toyota Camry",
+          "sales": 673000
+        }
+      ]
+    },
+    {
+      "name": "Volkswagen Group",
+      "total_sales": 8262800,
+      "models": [
+        {
+          "name": "Volkswagen Golf",
+          "sales": 500000
+        },
+        {
+          "name": "Volkswagen Tiguan",
+          "sales": 450000
+        },
+        {
+          "name": "Volkswagen Polo",
+          "sales": 400000
+        }
+      ]
+    },
+    {
+      "name": "Hyundai-Kia",
+      "total_sales": 6848198,
+      "models": [
+        {
+          "name": "Hyundai Tucson",
+          "sales": 500000
+        },
+        {
+          "name": "Hyundai Elantra",
+          "sales": 450000
+        },
+        {
+          "name": "Kia Sportage",
+          "sales": 400000
+        }
+      ]
+    },
+    {
+      "name": "Renault-Nissan-Mitsubishi Alliance",
+      "total_sales": 6289131,
+      "models": [
+        {
+          "name": "Nissan Sentra",
+          "sales": 566000
+        },
+        {
+          "name": "Renault Clio",
+          "sales": 300000
+        },
+        {
+          "name": "Mitsubishi Outlander",
+          "sales": 200000
+        }
+      ]
+    },
+    {
+      "name": "Stellantis",
+      "total_sales": 5839000,
+      "models": [
+        {
+          "name": "Fiat Strada",
+          "sales": 112000
+        },
+        {
+          "name": "Peugeot 208",
+          "sales": 220000
+        },
+        {
+          "name": "Jeep Grand Cherokee",
+          "sales": 200000
+        }
+      ]
+    },
+    {
+      "name": "SAIC",
+      "total_sales": 5300000,
+      "models": [
+        {
+          "name": "MG Hector",
+          "sales": 100000
+        },
+        {
+          "name": "Roewe RX5",
+          "sales": 150000
+        },
+        {
+          "name": "Baojun 510",
+          "sales": 200000
+        }
+      ]
+    },
+    {
+      "name": "Ford",
+      "total_sales": 4200000,
+      "models": [
+        {
+          "name": "Ford F-Series",
+          "sales": 650000
+        },
+        {
+          "name": "Ford Escape",
+          "sales": 200000
+        },
+        {
+          "name": "Ford Explorer",
+          "sales": 180000
+        }
+      ]
+    }
+  ]
+}
