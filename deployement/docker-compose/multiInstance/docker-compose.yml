@@ -1,23 +1,40 @@
-version: "3.9"
 services:
   carbone:
-    image: "carbone/carbone-ee:full"
-    ports:
-      - "4000"
+    # To use full template mangment, please use Carbone version > 5.4.0
+    image: "carbone/carbone-ee:full-5.4.0-beta.2"
+    # Set hostname to use it in peerEndpoints and in nginx
+    hostname: carbone-ee
     deploy:
-      replicas: 3
+      replicas: 2
     secrets:
       - source: carbone-license
         target: /app/config/license.carbone-license
-      - source: carbone-publickey
-        target: /app/config/key.pub
     environment:
       - CARBONE_EE_STUDIO=true
-      - CARBONE_EE_AUTHENTICATION=true
-      - CARBONE_EE_STUDIOUSER=toto:Passw0rd
-    volumes:
-      - ./template:/app/template
-      - ./render:/app/render
+      # Enable all templates management features
+      - CARBONE_TEMPLATE_MANAGEMENT=true
+      # Metadata synchronisation with multihosts
+      - CARBONE_PEER_PORT=5001
+      - CARBONE_PEER_ENDPOINTS=ws://carbone-ee
+      # S3 plugin configuration
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BUCKET_TEMPLATES=${BUCKET_TEMPLATES}
+      # For multi instance and Studio support, shared place for renders is needed.
+      # For API only usage and with download=true query paramater option, this option is not needed
+      - BUCKET_RENDERS=${BUCKET_RENDERS}
+    # Configure Stop timeout to give time to Carbone to backup all template metadata before exit
+    stop_grace_period: 30s
+    # Healthcheck configuration is needed to setup nginx loadbalencer
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/status"]
+      interval: 1m
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+      start_interval: 5s
   nginx:
     image: nginx:latest
     volumes:
@@ -26,8 +43,7 @@ services:
       - carbone
     ports:
       - "4000:4000"
+ 
 secrets:
   carbone-license:
     file: license.carbone-license
-  carbone-publickey:
-    file: key.pub  
