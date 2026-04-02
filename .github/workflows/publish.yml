@@ -7,12 +7,12 @@ on:
           type: string
           description: Version number. Tag in libreoffice repository
           required: true
-          default: "25.2.5.2"
+          default: "25.2.7.2"
         carbone_version:
           type: string
           description: Version of Carbone-ee
           required: true
-          default: "4.25.10"
+          default: "4.26.2"
         target_platforms:
           type: string
           description: target platforms
@@ -59,7 +59,6 @@ jobs:
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim-${{ inputs.carbone_version }}
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim
 
     -
       name: Buildx and push full variant
@@ -77,8 +76,6 @@ jobs:
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest
 
     -
       name: Checkout fonts
@@ -108,5 +105,3 @@ jobs:
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-fonts
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-fonts
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts
