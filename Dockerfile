@@ -2,7 +2,7 @@ ARG CHROME_VERSION="141.0.7390.55"
 
 FROM debian:stable-slim AS downloader_libreoffice
 ARG TARGETARCH
-ARG LO_VERSION="25.2.7.2"
+ARG LO_VERSION="26.2.1.1"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
@@ -27,7 +27,7 @@ FROM debian:stable-slim
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="5.0.3"
+ARG CARBONE_VERSION="5.4.2"
 
 LABEL carbone.version=${CARBONE_VERSION}
 
