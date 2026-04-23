@@ -183,7 +183,7 @@ jobs:
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts
-          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:full-{1}-fonts', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}-fonts
+          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:full-{1}-fonts', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
           ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:latest-fonts', vars.DOCKERHUB_ORG) || '' }}
   stop-arm-builder:
     name: Stop self-hosted EC2 runner
