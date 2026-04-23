@@ -33,7 +33,7 @@ LABEL carbone.version=${CARBONE_VERSION}
 
 WORKDIR /tmp
 RUN apt update && \
-    apt install -y libfreetype6 fontconfig libgssapi-krb5-2 unzip libpixman-1-0 && \
+    apt install -y libfreetype6 fontconfig libgssapi-krb5-2 unzip libpixman-1-0 dnsutils iputils-ping && \
     rm -rf /var/lib/apt/lists/*
 
 # Create Carbone user
