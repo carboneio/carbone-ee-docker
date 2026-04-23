@@ -28,6 +28,11 @@ on:
           description: target platforms
           required: true
           default: "linux/amd64,linux/arm64"
+        update_latest:
+          type: boolean
+          description: Update latest tags
+          required: true
+          default: true
 
 jobs:
   start-external-builder:
@@ -145,9 +150,9 @@ jobs:
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest
+          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:full-{1}', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
+          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:full', vars.DOCKERHUB_ORG) || '' }}
+          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:latest', vars.DOCKERHUB_ORG) || '' }}
 
     -
       name: Checkout fonts
@@ -178,8 +183,8 @@ jobs:
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-fonts
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:latest-fonts
+          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:full-{1}-fonts', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}-fonts
+          ${{ inputs.update_latest == 'true' && format('{0}/carbone-ee:latest-fonts', vars.DOCKERHUB_ORG) || '' }}
   stop-arm-builder:
     name: Stop self-hosted EC2 runner
     needs:
