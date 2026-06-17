@@ -44,9 +44,27 @@ variable "efs_storage" {
 }
 
 variable "s3_storage" {
-  description = "Use S3 share for perssistency" 
+  description = "Use S3 share for perssistency"
   type = bool
   default = false
+}
+
+variable "studio" {
+  description = "Enable Carbone Studio web interface"
+  type        = bool
+  default     = true
+}
+
+variable "template_management" {
+  description = "Enable Carbone Template Management API"
+  type        = bool
+  default     = false
+}
+
+variable "debug" {
+  description = "Enable ECS Exec on tasks (allows docker exec into running containers)"
+  type        = bool
+  default     = false
 }
 
 ##########################
@@ -216,6 +234,10 @@ resource "aws_ecs_cluster_capacity_providers" "carbone-cluster-provider" {
   }
 }
 
+resource "aws_service_discovery_http_namespace" "carbone" {
+  name = "carbone-internal"
+}
+
 ##########################
 ## Carbone Service Role
 ##########################
@@ -271,6 +293,52 @@ resource "aws_iam_role_policy_attachment" "carbone_SecretAccess_policy" {
   role       = aws_iam_role.carbone_role.name
 
   policy_arn = aws_iam_policy.secretAccess.arn
+}
+
+##########################
+## Carbone Task Role
+##########################
+resource "aws_iam_role" "carbone_task_role" {
+  name = "carbone_task_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    ST = "Carbone"
+  }
+}
+
+resource "aws_iam_role_policy" "carbone_task_exec_policy" {
+  count = var.debug ? 1 : 0
+  name  = "carbone-ecs-exec-policy"
+  role  = aws_iam_role.carbone_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 ###################################
@@ -412,6 +480,20 @@ resource "aws_iam_access_key" "s3_user_key" {
   user = aws_iam_user.s3_carbone_user[0].name
 }
 
+resource "aws_secretsmanager_secret" "s3_credentials" {
+  count = var.s3_storage ? 1 : 0
+  name  = "carbone/s3-credentials"
+}
+
+resource "aws_secretsmanager_secret_version" "s3_credentials" {
+  count     = var.s3_storage ? 1 : 0
+  secret_id = aws_secretsmanager_secret.s3_credentials[0].id
+  secret_string = jsonencode({
+    AWS_ACCESS_KEY_ID     = aws_iam_access_key.s3_user_key[0].id
+    AWS_SECRET_ACCESS_KEY = aws_iam_access_key.s3_user_key[0].secret
+  })
+}
+
 ## Assign policy
 resource "aws_iam_user_policy" "s3_readwrite" {
   count = var.s3_storage ? 1 : 0
@@ -471,46 +553,68 @@ resource "aws_ecs_task_definition" "carbone-service" {
       stopTimeout = 20
       environment = concat([
         {
-          name = "CARBONE_EE_STUDIO"
-          value = "true"
+          name  = "CARBONE_EE_STUDIO"
+          value = tostring(var.studio)
+        },
+        {
+          name  = "CARBONE_TEMPLATE_MANAGEMENT"
+          value = tostring(var.template_management)
         }],
+        var.template_management ? [
+          {
+            name  = "CARBONE_PEER_PORT"
+            value = "5001"
+          },
+          {
+            name  = "CARBONE_PEER_ENDPOINTS"
+            value = "ws://carbone"
+          },
+          {
+            name  = "CARBONE_TEMPLATE_METADATA_FLUSH_CRON"
+            value = "* * * * *"
+          }
+        ] : [],
         var.s3_storage ? [
           {
-            name = "AWS_REGION"
+            name  = "AWS_REGION"
             value = var.region
           },
           {
-            name = "AWS_ENDPOINT_URL"
+            name  = "AWS_ENDPOINT_URL"
             value = "s3.${var.region}.amazonaws.com"
-          },
-          {
-            name = "AWS_ACCESS_KEY_ID"
-            value = aws_iam_access_key.s3_user_key[0].id
-          },
-          {
-            name = "AWS_SECRET_ACCESS_KEY"
-            value = aws_iam_access_key.s3_user_key[0].secret
           }
         ] : [],
-        var.template_storage ? [
+        var.template_storage && var.s3_storage ? [
           {
-            name = "BUCKET_TEMPLATES"
+            name  = "BUCKET_TEMPLATES"
             value = aws_s3_bucket.template_s3_storage[0].bucket
           }
         ] : [],
-         var.render_storage ? [
+        var.render_storage && var.s3_storage ? [
           {
-            name = "BUCKET_RENDERS"
+            name  = "BUCKET_RENDERS"
             value = aws_s3_bucket.render_s3_storage[0].bucket
           }
         ] : []
       )
-      secrets = [
-        {
-            name = "CARBONE_EE_LICENSE"
+      secrets = concat(
+        [
+          {
+            name      = "CARBONE_EE_LICENSE"
             valueFrom = "arn:aws:secretsmanager:eu-west-3:307069698794:secret:carbone-ee/license-G0jIkt"
-        }
-      ]
+          }
+        ],
+        var.s3_storage ? [
+          {
+            name      = "AWS_ACCESS_KEY_ID"
+            valueFrom = "${aws_secretsmanager_secret.s3_credentials[0].arn}:AWS_ACCESS_KEY_ID::"
+          },
+          {
+            name      = "AWS_SECRET_ACCESS_KEY"
+            valueFrom = "${aws_secretsmanager_secret.s3_credentials[0].arn}:AWS_SECRET_ACCESS_KEY::"
+          }
+        ] : []
+      )
       logConfiguration= {
         logDriver= "awslogs"
         options= {
@@ -524,6 +628,12 @@ resource "aws_ecs_task_definition" "carbone-service" {
         {
           containerPort = 4000
           hostPort      = 4000
+        },
+        {
+          containerPort = 5001
+          hostPort      = 5001
+          name          = "carbone-cluster"
+          appProtocol   = "http"
         }
       ]
       mountPoints = concat(
@@ -534,7 +644,7 @@ resource "aws_ecs_task_definition" "carbone-service" {
         }] : [],
         var.template_storage && var.efs_storage ? [{
           sourceVolume  = "template-storage"
-          containerPath = "/app/templates"
+          containerPath = "/app/template"
           readOnly      = false
         }] : []
       )
@@ -569,17 +679,19 @@ resource "aws_ecs_task_definition" "carbone-service" {
     }
   }
   execution_role_arn = aws_iam_role.carbone_role.arn
+  task_role_arn      = aws_iam_role.carbone_task_role.arn
   tags = {
     ST = "Carbone"
   }
 }
 
 resource "aws_ecs_service" "carbone" {
-  name            = "carbone"
-  cluster         = aws_ecs_cluster.carbone-cluster.id
-  task_definition = aws_ecs_task_definition.carbone-service.arn
-  desired_count   = 1
-  platform_version = "LATEST"
+  name                   = "carbone"
+  cluster                = aws_ecs_cluster.carbone-cluster.id
+  task_definition        = aws_ecs_task_definition.carbone-service.arn
+  desired_count          = 2
+  platform_version       = "LATEST"
+  enable_execute_command = var.debug
 
   load_balancer {
     target_group_arn = aws_lb_target_group.carbone-tg.arn
@@ -589,8 +701,22 @@ resource "aws_ecs_service" "carbone" {
 
   lifecycle {
     ignore_changes = [
-      capacity_provider_strategy
+      capacity_provider_strategy,
+      desired_count
     ]
+  }
+
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_http_namespace.carbone.arn
+    service {
+      port_name      = "carbone-cluster"
+      discovery_name = "carbone"
+      client_alias {
+        port     = 5001
+        dns_name = "carbone"
+      }
+    }
   }
 
   network_configuration {
@@ -673,6 +799,14 @@ resource "aws_security_group" "carbone_service" {
   }
 
   ingress {
+    description = "Inter-task communication"
+    from_port   = 5001
+    to_port     = 5001
+    protocol    = "tcp"
+    self        = true
+  }
+
+  ingress {
     description      = "NFS from VPC"
     from_port        = 2049
     to_port          = 2049
@@ -727,7 +861,7 @@ resource "aws_security_group" "carbone_alb" {
 ##########################
 resource "aws_appautoscaling_target" "ecs_carbone_target" {
   max_capacity       = 6
-  min_capacity       = 0
+  min_capacity       = 2
   resource_id        = "service/${aws_ecs_cluster.carbone-cluster.name}/${aws_ecs_service.carbone.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -747,4 +881,12 @@ resource "aws_appautoscaling_policy" "ecs_carbone_target_cpu" {
     target_value = 40
   }
   depends_on = [aws_appautoscaling_target.ecs_carbone_target]
+}
+
+##########################
+## Outputs
+##########################
+output "service_url" {
+  description = "Carbone service URL"
+  value       = "http://${aws_alb.carbone-alb.dns_name}"
 }
