@@ -34,39 +34,7 @@ The service URL is printed at the end of the apply.
 
 ## Architecture
 
-```mermaid
-graph TB
-    Internet(["Internet"])
-
-    subgraph VPC["VPC · 10.0.0.0/16"]
-        IGW["Internet Gateway"]
-        NAT["NAT Gateway"]
-
-        subgraph Public["Public subnets — AZ1 · AZ2"]
-            ALB["Application Load Balancer\nport 80"]
-        end
-
-        subgraph Private["Private subnets — AZ1 · AZ2"]
-            direction LR
-            T1["Carbone Task\nport 4000 · 5001"]
-            T2["Carbone Task\nport 4000 · 5001"]
-            T1 <-->|"Service Connect · port 5001"| T2
-        end
-    end
-
-    SM[("Secrets Manager\nLicense · S3 creds")]
-    CW[["CloudWatch Logs"]]
-    EFS[("EFS\nTemplates · Renders")]
-    S3[("S3\nTemplates · Renders")]
-
-    Internet --> IGW --> ALB
-    ALB -->|"port 4000"| T1 & T2
-    Private -->|outbound| NAT --> IGW
-    T1 & T2 -. "at startup" .-> SM
-    T1 & T2 --> CW
-    T1 & T2 -. "optional" .-> EFS
-    T1 & T2 -. "optional" .-> S3
-```
+![Architecture](architecture.svg)
 
 > Port 5001 is restricted to intra-cluster traffic only via a self-referencing security group rule.
 

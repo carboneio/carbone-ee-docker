@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 540" font-family="'Segoe UI', Arial, sans-serif" font-size="12">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 z" fill="#555"/>
+    </marker>
+    <marker id="arrow-dashed" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L8,3.5 z" fill="#999"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="540" fill="#f8f9fa" rx="8"/>
+
+  <!-- Internet -->
+  <circle cx="60" cy="270" r="36" fill="#e8f4fd" stroke="#4a90d9" stroke-width="1.5"/>
+  <text x="60" y="265" text-anchor="middle" font-size="11" fill="#2c5f8a">🌐</text>
+  <text x="60" y="280" text-anchor="middle" font-size="10" fill="#2c5f8a" font-weight="600">Internet</text>
+
+  <!-- VPC box -->
+  <rect x="120" y="40" width="500" height="420" fill="#fff" stroke="#e07b00" stroke-width="1.5" rx="8" stroke-dasharray="6,3"/>
+  <text x="136" y="62" font-size="11" fill="#e07b00" font-weight="600">VPC · 10.0.0.0/16</text>
+
+  <!-- IGW -->
+  <rect x="148" y="240" width="100" height="52" rx="6" fill="#fff3e0" stroke="#e07b00" stroke-width="1.5"/>
+  <text x="198" y="261" text-anchor="middle" font-size="10" fill="#7a3b00" font-weight="600">Internet</text>
+  <text x="198" y="276" text-anchor="middle" font-size="10" fill="#7a3b00" font-weight="600">Gateway</text>
+  <text x="198" y="291" text-anchor="middle" font-size="9" fill="#a05000">IGW</text>
+
+  <!-- Public subnets box -->
+  <rect x="140" y="80" width="480" height="130" fill="#fef9f0" stroke="#f0a040" stroke-width="1" rx="6" stroke-dasharray="4,2"/>
+  <text x="156" y="98" font-size="10" fill="#a06000">Public subnets — AZ1 · AZ2</text>
+
+  <!-- ALB -->
+  <rect x="260" y="108" width="240" height="76" rx="6" fill="#fff3e0" stroke="#e07b00" stroke-width="1.5"/>
+  <text x="380" y="133" text-anchor="middle" font-size="11" fill="#7a3b00" font-weight="600">Application Load Balancer</text>
+  <text x="380" y="150" text-anchor="middle" font-size="10" fill="#a05000">port 80</text>
+  <text x="380" y="167" text-anchor="middle" font-size="9" fill="#a05000">carbone-alb</text>
+
+  <!-- NAT Gateway -->
+  <rect x="148" y="108" width="100" height="76" rx="6" fill="#fce8d0" stroke="#e07b00" stroke-width="1.5"/>
+  <text x="198" y="140" text-anchor="middle" font-size="10" fill="#7a3b00" font-weight="600">NAT</text>
+  <text x="198" y="155" text-anchor="middle" font-size="10" fill="#7a3b00" font-weight="600">Gateway</text>
+
+  <!-- Private subnets box -->
+  <rect x="140" y="240" width="480" height="200" fill="#f0f4ff" stroke="#5b7fcb" stroke-width="1" rx="6" stroke-dasharray="4,2"/>
+  <text x="156" y="258" font-size="10" fill="#2c4fa0">Private subnets — AZ1 · AZ2</text>
+
+  <!-- Task 1 -->
+  <rect x="180" y="268" width="150" height="148" rx="6" fill="#eaf0ff" stroke="#4a6fc4" stroke-width="1.5"/>
+  <text x="255" y="288" text-anchor="middle" font-size="10" fill="#1a3a80" font-weight="600">Carbone Task</text>
+  <text x="255" y="304" text-anchor="middle" font-size="9" fill="#3a5aaa">port 4000 · 5001</text>
+  <rect x="195" y="314" width="120" height="22" rx="3" fill="#c8d8f8" stroke="#4a6fc4" stroke-width="1"/>
+  <text x="255" y="329" text-anchor="middle" font-size="9" fill="#1a3a80">carbone-ee:full</text>
+  <rect x="195" y="342" width="120" height="22" rx="3" fill="#c8d8f8" stroke="#4a6fc4" stroke-width="1"/>
+  <text x="255" y="357" text-anchor="middle" font-size="9" fill="#1a3a80">ARM64 · 1vCPU · 2GB</text>
+  <rect x="195" y="370" width="120" height="30" rx="3" fill="#d8e8fc" stroke="#4a6fc4" stroke-width="1"/>
+  <text x="255" y="385" text-anchor="middle" font-size="8" fill="#1a3a80">Fargate</text>
+  <text x="255" y="396" text-anchor="middle" font-size="8" fill="#1a3a80">private subnet AZ1</text>
+
+  <!-- Task 2 -->
+  <rect x="430" y="268" width="150" height="148" rx="6" fill="#eaf0ff" stroke="#4a6fc4" stroke-width="1.5"/>
+  <text x="505" y="288" text-anchor="middle" font-size="10" fill="#1a3a80" font-weight="600">Carbone Task</text>
+  <text x="505" y="304" text-anchor="middle" font-size="9" fill="#3a5aaa">port 4000 · 5001</text>
+  <rect x="445" y="314" width="120" height="22" rx="3" fill="#c8d8f8" stroke="#4a6fc4" stroke-width="1"/>
+  <text x="505" y="329" text-anchor="middle" font-size="9" fill="#1a3a80">carbone-ee:full</text>
+  <rect x="445" y="342" width="120" height="22" rx="3" fill="#c8d8f8" stroke="#4a6fc4" stroke-width="1"/>
+  <text x="505" y="357" text-anchor="middle" font-size="9" fill="#1a3a80">ARM64 · 1vCPU · 2GB</text>
+  <rect x="445" y="370" width="120" height="30" rx="3" fill="#d8e8fc" stroke="#4a6fc4" stroke-width="1"/>
+  <text x="505" y="385" text-anchor="middle" font-size="8" fill="#1a3a80">Fargate</text>
+  <text x="505" y="396" text-anchor="middle" font-size="8" fill="#1a3a80">private subnet AZ2</text>
+
+  <!-- Service Connect arrow between tasks -->
+  <line x1="330" y1="342" x2="430" y2="342" stroke="#4a6fc4" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <text x="380" y="335" text-anchor="middle" font-size="8" fill="#2c4fa0">Service Connect</text>
+  <text x="380" y="355" text-anchor="middle" font-size="8" fill="#2c4fa0">port 5001</text>
+
+  <!-- External services on the right -->
+  <!-- Secrets Manager -->
+  <rect x="680" y="80" width="148" height="60" rx="6" fill="#fdf0ff" stroke="#9b30c8" stroke-width="1.5"/>
+  <text x="754" y="106" text-anchor="middle" font-size="10" fill="#5a1080" font-weight="600">Secrets Manager</text>
+  <text x="754" y="122" text-anchor="middle" font-size="9" fill="#7a30a0">License · S3 creds</text>
+
+  <!-- CloudWatch -->
+  <rect x="680" y="168" width="148" height="60" rx="6" fill="#f0fff4" stroke="#30a857" stroke-width="1.5"/>
+  <text x="754" y="194" text-anchor="middle" font-size="10" fill="#1a5c30" font-weight="600">CloudWatch Logs</text>
+  <text x="754" y="210" text-anchor="middle" font-size="9" fill="#2a7a40">awslog-carbone</text>
+
+  <!-- EFS -->
+  <rect x="680" y="256" width="148" height="60" rx="6" fill="#fff8e8" stroke="#c8900a" stroke-width="1.5"/>
+  <text x="754" y="282" text-anchor="middle" font-size="10" fill="#7a4a00" font-weight="600">EFS</text>
+  <text x="754" y="298" text-anchor="middle" font-size="9" fill="#9a6010">Templates · Renders</text>
+
+  <!-- S3 -->
+  <rect x="680" y="344" width="148" height="60" rx="6" fill="#fff8e8" stroke="#c8900a" stroke-width="1.5"/>
+  <text x="754" y="370" text-anchor="middle" font-size="10" fill="#7a4a00" font-weight="600">S3</text>
+  <text x="754" y="386" text-anchor="middle" font-size="9" fill="#9a6010">Templates · Renders</text>
+
+  <!-- Internet → IGW -->
+  <line x1="96" y1="270" x2="148" y2="270" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- IGW → ALB -->
+  <line x1="198" y1="240" x2="310" y2="184" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ALB → Task1 (port 4000) -->
+  <line x1="320" y1="184" x2="270" y2="268" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ALB → Task2 (port 4000) -->
+  <line x1="440" y1="184" x2="490" y2="268" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ALB label port 4000 -->
+  <text x="358" y="238" font-size="9" fill="#333">port 4000</text>
+
+  <!-- Private → NAT (outbound) -->
+  <line x1="198" y1="240" x2="198" y2="184" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Tasks → Secrets Manager (dashed) -->
+  <line x1="330" y1="295" x2="680" y2="110" stroke="#999" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrow-dashed)"/>
+  <text x="570" y="188" font-size="8" fill="#888">at startup</text>
+
+  <!-- Tasks → CloudWatch -->
+  <line x1="580" y1="310" x2="680" y2="198" stroke="#555" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- Tasks → EFS (dashed) -->
+  <line x1="580" y1="340" x2="680" y2="286" stroke="#999" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrow-dashed)"/>
+  <text x="660" y="325" font-size="8" fill="#888">optional</text>
+
+  <!-- Tasks → S3 (dashed) -->
+  <line x1="580" y1="370" x2="680" y2="374" stroke="#999" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrow-dashed)"/>
+  <text x="660" y="412" font-size="8" fill="#888">optional</text>
+
+  <!-- Legend -->
+  <rect x="140" y="472" width="480" height="42" rx="4" fill="none" stroke="#ccc" stroke-width="1"/>
+  <line x1="160" y1="490" x2="190" y2="490" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="196" y="494" font-size="9" fill="#444">required traffic</text>
+  <line x1="300" y1="490" x2="330" y2="490" stroke="#999" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrow-dashed)"/>
+  <text x="336" y="494" font-size="9" fill="#444">conditional / optional</text>
+  <text x="160" y="508" font-size="9" fill="#444">Security group on port 5001: self-referencing (intra-cluster only)</text>
+</svg>

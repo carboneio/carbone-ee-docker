@@ -7,7 +7,15 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
 }
 
 # Configure the AWS Provider
@@ -66,6 +74,7 @@ variable "debug" {
   type        = bool
   default     = false
 }
+
 
 ##########################
 ## Network configuration
@@ -270,9 +279,27 @@ resource "aws_iam_role_policy_attachment" "carbone_ecsTaskExecutionRole_policy" 
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "carbone_CloudWatchLogsFullAccess_policy" {
+resource "aws_iam_policy" "cloudwatch_logs" {
+  name = "CarboneCloudWatchLogs"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "carbone_CloudWatchLogs_policy" {
   role       = aws_iam_role.carbone_role.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+  policy_arn = aws_iam_policy.cloudwatch_logs.arn
 }
 
 resource "aws_iam_policy" "secretAccess" {
@@ -439,7 +466,7 @@ resource "aws_efs_access_point" "render-access" {
 resource "aws_s3_bucket" "template_s3_storage" {
   count = var.s3_storage && var.template_storage ? 1 : 0
 
-  bucket = "carbone-template-bucket-1234"
+  bucket = "carbone-template-${random_id.bucket_suffix.hex}"
 
   lifecycle {
     precondition {
@@ -453,7 +480,7 @@ resource "aws_s3_bucket" "template_s3_storage" {
 resource "aws_s3_bucket" "render_s3_storage" {
   count = var.s3_storage && var.render_storage ? 1 : 0
 
-  bucket = "carbone-render-bucket-1234"
+  bucket = "carbone-render-${random_id.bucket_suffix.hex}"
 
   lifecycle {
     precondition {
@@ -594,6 +621,12 @@ resource "aws_ecs_task_definition" "carbone-service" {
           {
             name  = "BUCKET_RENDERS"
             value = aws_s3_bucket.render_s3_storage[0].bucket
+          }
+        ] : [],
+        var.debug ? [
+          {
+            name  = "DEBUG"
+            value = "carbone*"
           }
         ] : []
       )
@@ -746,10 +779,12 @@ resource "aws_lb_target_group" "carbone-tg" {
   depends_on = [aws_alb.carbone-alb]
 
   health_check {
-    enabled = "true"
-    interval = 60
-    matcher = 200
-    path = "/status"
+    enabled             = true
+    interval            = 20
+    matcher             = "200"
+    path                = "/status"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
   }
 
   tags = {
@@ -791,11 +826,11 @@ resource "aws_security_group" "carbone_service" {
   vpc_id      = aws_vpc.carbone-vpc.id
 
   ingress {
-    description      = "HTTP from VPC"
-    from_port        = 4000
-    to_port          = 4000
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    description             = "HTTP from ALB only"
+    from_port               = 4000
+    to_port                 = 4000
+    protocol                = "tcp"
+    security_groups         = [aws_security_group.carbone_alb.id]
   }
 
   ingress {
