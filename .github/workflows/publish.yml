@@ -7,7 +7,7 @@ on:
           type: string
           description: Version number. Tag in libreoffice repository
           required: true
-          default: "26.2.1.1"
+          default: "26.2.4.2"
         oo_version:
           type: string
           description: OnlyOffice version
