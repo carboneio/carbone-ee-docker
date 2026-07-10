@@ -218,7 +218,7 @@ resource "aws_ecs_cluster" "carbone-cluster" {
 
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = "enhanced"
   }
 
   configuration {
@@ -371,6 +371,14 @@ resource "aws_iam_role_policy" "carbone_task_exec_policy" {
 ###################################
 ## Persistance Data configuration
 ###################################
+
+check "efs_template_management_incompatibility" {
+  assert {
+    condition     = !(var.efs_storage && var.template_management)
+    error_message = "EFS storage is incompatible with template_management when running more than one task. SQLite (used for template metadata) relies on POSIX fcntl locks that NFS/EFS does not guarantee across multiple clients — this causes SQLITE_IOERR errors and risks database corruption. Use s3_storage = true instead."
+  }
+}
+
 resource "aws_efs_file_system" "carbone-shared-storage" {
   count = var.efs_storage == true ? 1 : 0
   creation_token = "carbone-persistant-storage"
@@ -434,10 +442,14 @@ resource "aws_efs_mount_target" "efs-mount-az2" {
 resource "aws_efs_access_point" "template-access" {
   count = var.efs_storage && var.template_storage  ? 1 : 0
   file_system_id = aws_efs_file_system.carbone-shared-storage[0].id
+  posix_user {
+    uid = 1000
+    gid = 1000
+  }
   root_directory {
     path = "/template"
     creation_info {
-      permissions = 766
+      permissions = 755
       owner_gid = 1000
       owner_uid = 1000
     }
@@ -450,10 +462,14 @@ resource "aws_efs_access_point" "template-access" {
 resource "aws_efs_access_point" "render-access" {
   count = var.efs_storage && var.render_storage ? 1 : 0
   file_system_id = aws_efs_file_system.carbone-shared-storage[0].id
+  posix_user {
+    uid = 1000
+    gid = 1000
+  }
   root_directory {
     path = "/render"
     creation_info {
-      permissions = 766
+      permissions = 755
       owner_gid = 1000
       owner_uid = 1000
     }
@@ -508,8 +524,9 @@ resource "aws_iam_access_key" "s3_user_key" {
 }
 
 resource "aws_secretsmanager_secret" "s3_credentials" {
-  count = var.s3_storage ? 1 : 0
-  name  = "carbone/s3-credentials"
+  count                   = var.s3_storage ? 1 : 0
+  name                    = "carbone/s3-credentials"
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "s3_credentials" {
@@ -566,8 +583,8 @@ resource "aws_ecs_task_definition" "carbone-service" {
   family = "carboneService"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = 2048
+  memory                   = 4096
   runtime_platform {
     operating_system_family = "LINUX"
     cpu_architecture = "ARM64"
@@ -582,6 +599,10 @@ resource "aws_ecs_task_definition" "carbone-service" {
         {
           name  = "CARBONE_EE_STUDIO"
           value = tostring(var.studio)
+        },
+        {
+          name  = "CARBONE_EE_FACTORIES"
+          value = "2"
         },
         {
           name  = "CARBONE_TEMPLATE_MANAGEMENT"
@@ -626,7 +647,7 @@ resource "aws_ecs_task_definition" "carbone-service" {
         var.debug ? [
           {
             name  = "DEBUG"
-            value = "carbone*"
+            value = "carbone:*"
           }
         ] : []
       )
@@ -681,6 +702,27 @@ resource "aws_ecs_task_definition" "carbone-service" {
           readOnly      = false
         }] : []
       )
+    },
+    {
+      name      = "adot-collector"
+      image     = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
+      essential = false
+      command   = ["--config", "env:AOT_CONFIG_CONTENT"]
+      environment = [
+        {
+          name  = "AOT_CONFIG_CONTENT"
+          value = local.adot_config
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-create-group  = "true"
+          awslogs-group         = "awslog-carbone"
+          awslogs-region        = "${data.aws_region.current.name}"
+          awslogs-stream-prefix = "adot"
+        }
+      }
     }
   ])
   dynamic "volume" {
@@ -794,13 +836,14 @@ resource "aws_lb_target_group" "carbone-tg" {
 }
 
 resource "aws_alb" "carbone-alb" {
-  name = "carbone-alb"
+  name         = "carbone-alb"
+  idle_timeout = 300
   subnets = [
     aws_subnet.carbone-public-subnet-AZ1.id,
     aws_subnet.carbone-public-subnet-AZ2.id
   ]
 
-  security_groups = [ 
+  security_groups = [
     aws_security_group.carbone_alb.id
     ]
 
@@ -892,14 +935,116 @@ resource "aws_security_group" "carbone_alb" {
 }
 
 ##########################
+## ADOT — Prometheus → CloudWatch
+##########################
+locals {
+  adot_config = <<-EOT
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: carbone
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['localhost:5001']
+          metric_relabel_configs:
+            - source_labels: [__name__]
+              regex: 'queued'
+              action: keep
+processors:
+  batch/metrics:
+    timeout: 60s
+exporters:
+  awsemf:
+    namespace: Carbone/ECS
+    log_group_name: /carbone/metrics
+    dimension_rollup_option: NoDimensionRollup
+    metric_declarations:
+      - dimensions: [[ClusterName, ServiceName]]
+        metric_name_selectors:
+          - queued
+extensions:
+  health_check:
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch/metrics]
+      exporters: [awsemf]
+EOT
+}
+
+resource "aws_ssm_parameter" "adot_config" {
+  name  = "/carbone/adot-config"
+  type  = "String"
+  value = local.adot_config
+}
+
+resource "aws_iam_role_policy" "carbone_task_cloudwatch_metrics" {
+  name = "carbone-cloudwatch-put-metrics"
+  role = aws_iam_role.carbone_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["cloudwatch:PutMetricData"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "arn:aws:logs:*:*:log-group:/carbone/metrics:*"
+      }
+    ]
+  })
+}
+
+##########################
 ## Autoscaling
 ##########################
 resource "aws_appautoscaling_target" "ecs_carbone_target" {
-  max_capacity       = 6
-  min_capacity       = 2
+  max_capacity       = 15
+  min_capacity       = 1
   resource_id        = "service/${aws_ecs_cluster.carbone-cluster.name}/${aws_ecs_service.carbone.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "ecs_carbone_target_queued" {
+  name               = "application-scaling-policy-queued"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_carbone_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_carbone_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_carbone_target.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    customized_metric_specification {
+      metric_name = "queued"
+      namespace   = "Carbone/ECS"
+      statistic   = "Sum"
+      dimensions {
+        name  = "ClusterName"
+        value = aws_ecs_cluster.carbone-cluster.name
+      }
+      dimensions {
+        name  = "ServiceName"
+        value = aws_ecs_service.carbone.name
+      }
+    }
+    target_value       = 5
+    scale_out_cooldown = 30
+    scale_in_cooldown  = 120
+    disable_scale_in   = true
+  }
+  depends_on = [aws_appautoscaling_target.ecs_carbone_target]
 }
 
 resource "aws_appautoscaling_policy" "ecs_carbone_target_cpu" {
@@ -913,7 +1058,9 @@ resource "aws_appautoscaling_policy" "ecs_carbone_target_cpu" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
-    target_value = 40
+    target_value       = 40
+    scale_out_cooldown = 30
+    scale_in_cooldown  = 120
   }
   depends_on = [aws_appautoscaling_target.ecs_carbone_target]
 }

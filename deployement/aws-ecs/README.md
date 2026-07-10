@@ -72,6 +72,9 @@ Options can be set in a `terraform.tfvars` file or passed via `-var` flags.
 | `false` | `true` | `true` | `true` | Templates + renders persisted on S3 |
 | `false` | `false` | — | — | No persistent storage |
 
+> **EFS + `template_management` are incompatible when running more than one task.**
+> The Template Management API uses a SQLite database for metadata. SQLite relies on POSIX `fcntl` advisory locks that NFS/EFS does not reliably enforce across multiple NFS clients — resulting in `SQLITE_IOERR` errors and risk of database corruption. Terraform will emit a warning if both `efs_storage` and `template_management` are enabled. Use `s3_storage = true` in this case.
+
 ### Example `terraform.tfvars`
 
 ```hcl
@@ -112,7 +115,58 @@ terraform {
 image = "carbone/carbone-ee:4.x.x-full"
 ```
 
-**Autoscaling thresholds** — The default CPU target is 40%. Adjust `max_capacity` and `target_value` based on your actual load profile to avoid under-provisioning.
+**Autoscaling thresholds** — The default queue target is 5 queued jobs per task. Adjust `max_capacity` and `target_value` in `ecs.tf` based on your actual load profile.
+
+## Autoscaling
+
+The service scales between 2 and 6 tasks using a `TargetTrackingScaling` policy driven by the `queued` metric exposed by Carbone on its `/metrics` endpoint.
+
+### How it works
+
+An [AWS Distro for OpenTelemetry (ADOT)](https://aws-otel.github.io) sidecar container runs inside each ECS task alongside Carbone. It scrapes `localhost:4000/metrics` every 15 seconds, filters the `queued` metric, and publishes it to CloudWatch under the namespace `Carbone/ECS` with `ClusterName` and `ServiceName` dimensions.
+
+Application Auto Scaling reads the average value of `queued` across all running tasks and adjusts the desired count to keep that average at or below the target.
+
+```
+/metrics (Prometheus)        CloudWatch             Auto Scaling
+  Carbone :4000 ──────► ADOT sidecar ──────► Carbone/ECS::queued ──────► ECS desired count
+```
+
+### Scaling parameters
+
+| Parameter | Value | Description |
+|---|---|---|
+| `target_value` | `5` | Target average number of queued jobs per task |
+| `min_capacity` | `2` | Minimum number of running tasks |
+| `max_capacity` | `6` | Maximum number of running tasks |
+| `scale_out_cooldown` | `30s` | Minimum time between two scale-out events |
+| `scale_in_cooldown` | `120s` | Minimum time before scaling in after a scale-out |
+
+**Scale-out example**: if 2 tasks are running and the average `queued` rises to 12, Auto Scaling adds a third task to bring the average back toward 5 (`12 * 2 / 5 ≈ 5 tasks targeted`).
+
+### Tuning
+
+- **`target_value`** — lower values scale out sooner (lower latency, higher cost); higher values tolerate longer queues.
+- **`scale_in_cooldown`** — keep this conservative (≥ 120s) to avoid task churn from transient queue spikes.
+- **`max_capacity`** — set an upper bound that matches your Fargate quota and cost budget.
+
+To change parameters, edit the `aws_appautoscaling_target` and `aws_appautoscaling_policy.ecs_carbone_target_queued` resources in `ecs.tf` and run `terraform apply`.
+
+### Viewing the metric in CloudWatch
+
+```bash
+aws cloudwatch get-metric-statistics \
+  --namespace Carbone/ECS \
+  --metric-name queued \
+  --dimensions Name=ClusterName,Value=CarboneCluster Name=ServiceName,Value=carbone \
+  --start-time $(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  --period 60 \
+  --statistics Average \
+  --profile ecs
+```
+
+ADOT logs are available in the same CloudWatch log group as Carbone (`awslog-carbone`), under the stream prefix `adot`.
 
 ## FAQ
 
