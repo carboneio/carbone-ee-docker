@@ -47,9 +47,27 @@ Options can be set in a `terraform.tfvars` file or passed via `-var` flags.
 | Variable | Type | Default | Description |
 |---|---|---|---|
 | `region` | `string` | `"us-east-1"` | AWS region to deploy into |
-| `studio` | `bool` | `true` | Enable the Carbone Studio web interface |
+| `studio` | `bool` | `false` | Enable the Carbone Studio web interface |
 | `template_management` | `bool` | `false` | Enable the Template Management API |
 | `debug` | `bool` | `false` | Enable ECS Exec to open a shell into running containers |
+| `job_balancer` | `bool` | `false` | Enable Carbone's job balancer (`CARBONE_JOB_BALANCER`) — spreads document conversion load across the peers of a cluster |
+
+### Runtime limits
+
+These map to Carbone's own configuration environment variables (`CARBONE_*`). Defaults below match Carbone's documented defaults — see the [configuration reference](https://carbone.io/documentation/developer/on-premise-installation/configuration.html) for the full list and units.
+
+| Variable | Type | Default | Env variable | Description |
+|---|---|---|---|---|
+| `max_data_size` | `number` | `62914560` (60MB) | `CARBONE_MAX_DATA_SIZE` | Maximum size (bytes) of the JSON data sent for rendering |
+| `max_generation_time` | `number` | `60000` (60s) | `CARBONE_MAX_GENERATION_TIME` | Maximum time (ms) allowed to generate one document, including conversion |
+| `max_download_file_size_total` | `number` | `10485760` (10MB) | `CARBONE_MAX_DOWNLOAD_FILE_SIZE_TOTAL` | Total maximum size (bytes) of all files downloaded from external URLs combined |
+| `max_download_file_count` | `number` | `20` | `CARBONE_MAX_DOWNLOAD_FILE_COUNT` | Maximum number of files downloaded from external URLs for a single render |
+| `max_download_file_timeout` | `number` | `6000` (6s) | `CARBONE_MAX_DOWNLOAD_FILE_TIMEOUT` | Maximum time (ms) allowed to download a file or image from an external URL |
+| `max_download_file_concurrency` | `number` | `15` | `CARBONE_MAX_DOWNLOAD_FILE_CONCURRENCY` | Maximum number of concurrent file downloads from external URLs |
+
+> **Naming note** — Since Carbone v5, environment variables use the `CARBONE_` prefix (e.g. `CARBONE_STUDIO`, `CARBONE_FACTORIES`, `CARBONE_MAX_DATA_SIZE`). This task definition uses the modern names; the older pre-v5 `CARBONE_EE_*` names are still accepted by Carbone but are no longer used here.
+>
+> These are conservative defaults suited to typical workloads. If you render large templates, generate many documents concurrently, or download many external images/files per render, raise these values in `terraform.tfvars` to match your workload.
 
 ### Storage
 
@@ -105,14 +123,14 @@ terraform {
 
 **IAM permissions** — The `secretsmanager:GetSecretValue` policy currently allows `Resource: "*"`. Restrict it to the exact ARN of the Carbone license secret.
 
-**Disable Studio** — If the Studio interface is not needed in production, set `studio = false` to reduce the attack surface.
+**Disable Studio** — Studio is disabled by default (`studio = false`). Only set it to `true` if you need the web preview interface.
 
 **Disable debug** — Keep `debug = false` in production. ECS Exec opens a shell into running containers and should only be enabled for troubleshooting.
 
 **Image version** — Pin the container image to a specific version instead of `full` to ensure reproducible deployments:
 
 ```hcl
-image = "carbone/carbone-ee:4.x.x-full"
+image = "carbone/carbone-ee:5.x.x-full"
 ```
 
 **Autoscaling thresholds** — The default queue target is 5 queued jobs per task. Adjust `max_capacity` and `target_value` in `ecs.tf` based on your actual load profile.

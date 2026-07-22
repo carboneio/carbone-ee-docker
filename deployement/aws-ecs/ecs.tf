@@ -60,7 +60,7 @@ variable "s3_storage" {
 variable "studio" {
   description = "Enable Carbone Studio web interface"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "template_management" {
@@ -73,6 +73,48 @@ variable "debug" {
   description = "Enable ECS Exec on tasks (allows docker exec into running containers)"
   type        = bool
   default     = false
+}
+
+variable "job_balancer" {
+  description = "Enable Carbone job balancer"
+  type        = bool
+  default     = false
+}
+
+variable "max_data_size" {
+  description = "Maximum size (in bytes) of the data (JSON) sent for rendering"
+  type        = number
+  default     = 62914560
+}
+
+variable "max_generation_time" {
+  description = "Maximum time (in ms) allowed to generate a document"
+  type        = number
+  default     = 60000
+}
+
+variable "max_download_file_size_total" {
+  description = "Maximum total size (in bytes) of downloaded files"
+  type        = number
+  default     = 10485760
+}
+
+variable "max_download_file_count" {
+  description = "Maximum number of files that can be downloaded"
+  type        = number
+  default     = 20
+}
+
+variable "max_download_file_timeout" {
+  description = "Maximum time (in ms) allowed to download a file"
+  type        = number
+  default     = 6000
+}
+
+variable "max_download_file_concurrency" {
+  description = "Maximum number of concurrent file downloads"
+  type        = number
+  default     = 15
 }
 
 
@@ -597,12 +639,40 @@ resource "aws_ecs_task_definition" "carbone-service" {
       stopTimeout = 20
       environment = concat([
         {
-          name  = "CARBONE_EE_STUDIO"
+          name  = "CARBONE_STUDIO"
           value = tostring(var.studio)
         },
         {
-          name  = "CARBONE_EE_FACTORIES"
-          value = "2"
+          name  = "CARBONE_FACTORIES"
+          value = "1"
+        },
+        {
+          name  = "CARBONE_MAX_DATA_SIZE"
+          value = tostring(var.max_data_size)
+        },
+        {
+          name = "CARBONE_MAX_DOWNLOAD_FILE_CONCURRENCY"
+          value = tostring(var.max_download_file_concurrency)
+        },
+        {
+          name  = "CARBONE_MAX_DOWNLOAD_FILE_TIMEOUT"
+          value = tostring(var.max_download_file_timeout)
+        },
+        {
+          name  = "CARBONE_MAX_DOWNLOAD_FILE_COUNT"
+          value = tostring(var.max_download_file_count)
+        },
+        {
+          name  = "CARBONE_MAX_DOWNLOAD_FILE_SIZE_TOTAL"
+          value = tostring(var.max_download_file_size_total)
+        },
+        {
+          name  = "CARBONE_JOB_BALANCER"
+          value = tostring(var.job_balancer)
+        },
+        {
+          name  = "CARBONE_MAX_GENERATION_TIME"
+          value = tostring(var.max_generation_time)
         },
         {
           name  = "CARBONE_TEMPLATE_MANAGEMENT"
@@ -647,7 +717,7 @@ resource "aws_ecs_task_definition" "carbone-service" {
         var.debug ? [
           {
             name  = "DEBUG"
-            value = "carbone:*"
+            value = "carbone:job-balancer"
           }
         ] : []
       )
@@ -822,7 +892,7 @@ resource "aws_lb_target_group" "carbone-tg" {
 
   health_check {
     enabled             = true
-    interval            = 20
+    interval            = 10
     matcher             = "200"
     path                = "/status"
     healthy_threshold   = 2
@@ -944,16 +1014,32 @@ receivers:
     config:
       scrape_configs:
         - job_name: carbone
-          scrape_interval: 15s
+          scrape_interval: 10s
           static_configs:
             - targets: ['localhost:5001']
           metric_relabel_configs:
-            - source_labels: [__name__]
-              regex: 'queued'
+            - source_labels: [__name__, stage]
+              regex: 'carbone_reports_inflight;(queued|conversion)'
               action: keep
+            - source_labels: [__name__]
+              regex: 'carbone_reports_inflight'
+              target_label: __name__
+              replacement: 'queued'
+              action: replace
 processors:
+  metricstransform:
+    transforms:
+      - include: queued
+        action: update
+        operations:
+          - action: add_label
+            new_label: ClusterName
+            new_value: CarboneCluster
+          - action: add_label
+            new_label: ServiceName
+            new_value: carbone
   batch/metrics:
-    timeout: 60s
+    timeout: 10s
 exporters:
   awsemf:
     namespace: Carbone/ECS
@@ -970,7 +1056,7 @@ service:
   pipelines:
     metrics:
       receivers: [prometheus]
-      processors: [batch/metrics]
+      processors: [metricstransform, batch/metrics]
       exporters: [awsemf]
 EOT
 }
@@ -1039,7 +1125,7 @@ resource "aws_appautoscaling_policy" "ecs_carbone_target_queued" {
         value = aws_ecs_service.carbone.name
       }
     }
-    target_value       = 5
+    target_value       = 15
     scale_out_cooldown = 30
     scale_in_cooldown  = 120
     disable_scale_in   = true
