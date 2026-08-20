@@ -1,8 +1,9 @@
 version: "3.9"
 services:
   carbone:
-    image: carbone
-    build : ./
+    image: carbone/carbone-ee:full
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "4000:4000"
     secrets:
