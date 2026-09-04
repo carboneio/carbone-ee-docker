@@ -128,7 +128,8 @@ jobs:
         sbom: true
         build-args: |
           CARBONE_VERSION=${{ inputs.carbone_version }}
-        file: ./Dockerfile-slim
+        file: ./Dockerfile
+        target: slim
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim-${{ inputs.carbone_version }}
@@ -147,12 +148,33 @@ jobs:
           OO_VERSION=${{ inputs.oo_version }}
           CHROME_VERSION=${{ inputs.chrome_version }}
         file: ./Dockerfile
+        target: full
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
           ${{ inputs.update_latest == true && format('{0}/carbone-ee:full-{1}', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
           ${{ inputs.update_latest == true && format('{0}/carbone-ee:full', vars.DOCKERHUB_ORG) || '' }}
           ${{ inputs.update_latest == true && format('{0}/carbone-ee:latest', vars.DOCKERHUB_ORG) || '' }}
+
+    -
+      name: Buildx and push no-onlyoffice variant
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      with:
+        platforms: ${{ inputs.target_platforms }}
+        context: ./
+        provenance: mode=max
+        sbom: true
+        build-args: |
+          CARBONE_VERSION=${{ inputs.carbone_version }}
+          LO_VERSION=${{ inputs.lo_version }}
+          CHROME_VERSION=${{ inputs.chrome_version }}
+        file: ./Dockerfile
+        target: no-onlyoffice
+        push: true
+        tags: |
+          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:no-onlyoffice-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
+          ${{ inputs.update_latest == true && format('{0}/carbone-ee:no-onlyoffice-{1}', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
+          ${{ inputs.update_latest == true && format('{0}/carbone-ee:no-onlyoffice', vars.DOCKERHUB_ORG) || '' }}
 
     -
       name: Checkout fonts
@@ -179,7 +201,8 @@ jobs:
           LO_VERSION=${{ inputs.lo_version }}
           OO_VERSION=${{ inputs.oo_version }}
           CHROME_VERSION=${{ inputs.chrome_version }}
-        file: ./Dockerfile-fonts
+        file: ./Dockerfile
+        target: full-fonts
         push: true
         tags: |
           ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts

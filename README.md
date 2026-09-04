@@ -19,6 +19,8 @@ Send a template file and a JSON dataset, and the engine will return the document
 
 ## Build
 
+All variants are built from the same `Dockerfile`, selected with `--target`.
+
 ### Build slim variant
 
 Minimal version of Carbone. This image does not include Libreoffice (no PDF generation possible). You can use this image to run Carbone with the LibreOffice version of your choice.
@@ -26,17 +28,17 @@ Minimal version of Carbone. This image does not include Libreoffice (no PDF gene
 ```bash
 export CARBONE_VERSION=4.25.0
 
-docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:$CARBONE_VERSION-slim --attest type=provenance,mode=max --sbom=true -f ./Dockerfile-slim .
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:$CARBONE_VERSION-slim --attest type=provenance,mode=max --sbom=true -f ./Dockerfile --target slim .
 ```
 
 ### Build full variant
 
-Full version of Carbone including the latest version of LibreOffice
+Full version of Carbone including the latest version of LibreOffice, OnlyOffice and Chrome.
 
 ```bash
 export CARBONE_VERSION=4.25.0
 
-docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:full-$CARBONE_VERSION --attest type=provenance,mode=max --sbom=true -f ./Dockerfile .
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:full-$CARBONE_VERSION --attest type=provenance,mode=max --sbom=true -f ./Dockerfile --target full .
 ```
 
 ### Build fonts variant
@@ -46,7 +48,19 @@ Full version of Carbone including the latest version of LibreOffice. This versio
 ```bash
 export CARBONE_VERSION=4.25.0
 
-docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:full-$CARBONE_VERSION-fonts --attest type=provenance,mode=max --sbom=true -f ./Dockerfile-fonts .
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --build-arg LO_VERSION=24.8.2.1 --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:full-$CARBONE_VERSION-fonts --attest type=provenance,mode=max --sbom=true -f ./Dockerfile --target full-fonts .
+```
+
+### Other variants
+
+Each converter can also be toggled off independently with a dedicated `--target`:
+
+- `no-onlyoffice`: LibreOffice + Chrome, no OnlyOffice
+- `no-libreoffice`: OnlyOffice + Chrome, no LibreOffice
+- `no-chrome`: LibreOffice + OnlyOffice, no Chrome
+
+```bash
+docker buildx build --build-arg CARBONE_VERSION=$CARBONE_VERSION --platform linux/arm64/v8,linux/amd64 --tag carbone/carbone-ee:no-onlyoffice-$CARBONE_VERSION -f ./Dockerfile --target no-onlyoffice .
 ```
 
 ## How to use this image
