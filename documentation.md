@@ -66,6 +66,25 @@ docker run -t --rm -e CARBONE_EE_LICENSE -e CARBONE_EE_STUDIO=true carbone/carbo
 
 The list of configuration options is [here](https://carbone.io/on-premise.html#server-options)
 
+### Chrome converter and sandbox
+
+The `full` image includes Chrome, used for HTML to PDF conversion. At startup, the entrypoint checks whether Chrome can run with its sandbox, which requires the container to allow unprivileged user namespaces:
+
+- If it can, Chrome runs with its sandbox and the log shows `Running Chrome with sandbox`.
+- If it cannot, Chrome runs **without sandbox** (`--no-sandbox`) and the log shows a `WARNING`. This is the case with Docker's default seccomp profile, on AWS Fargate, and on Kubernetes with the `RuntimeDefault` seccomp profile.
+
+Without sandbox, a vulnerability in Chrome's rendering engine would give access to the container (templates, generated documents, environment variables such as storage credentials). To enable the sandbox:
+
+- Use a seccomp profile that allows `clone`/`unshare` with `CLONE_NEWUSER`, or
+- Add the `SYS_ADMIN` capability (`--cap-add SYS_ADMIN`). This also allows user namespaces with Docker's default seccomp profile, but grants the container a broad capability: prefer a dedicated seccomp profile when possible.
+
+If you do not need HTML to PDF conversion, disable Chrome:
+
+- Set `CARBONE_DISABLE_CHROME=true`: the entrypoint does not configure Chrome (it unsets `CARBONE_EE_CHROMEPATH`) and the Chrome converter is not started.
+- Or use an image variant without Chrome (`no-chrome`, `slim`).
+
+You can also set the Chrome flags yourself with `CARBONE_CHROME_FLAGS`. In that case, the entrypoint does not run the sandbox check and uses your flags as is.
+
 ### Configuring data persistence
 
 #### Minimun configuration (single node)
