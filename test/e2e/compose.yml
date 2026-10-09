@@ -1,0 +1,73 @@
+# End-to-end test stack: one Carbone instance per storage plugin, each backed by a local emulator.
+# Driven by run.sh, which sets CARBONE_IMAGE to the image under test.
+
+x-carbone: &carbone
+  image: ${CARBONE_IMAGE:?CARBONE_IMAGE must be set}
+  environment: &carbone-env
+    LANG: C.UTF-8
+
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    command: azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck --loose
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "10000"]
+      interval: 1s
+      retries: 30
+
+  # Creates the blob containers (the plugin expects them to exist) and lists them for the checks in run.sh
+  azure-cli:
+    image: mcr.microsoft.com/azure-cli:2.77.0
+    environment:
+      AZURE_STORAGE_CONNECTION_STRING: &azurite-connection-string "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+    depends_on:
+      azurite:
+        condition: service_healthy
+    command: >
+      sh -c "az storage container create -n templates -o none &&
+             az storage container create -n renders -o none"
+
+  # S3 emulator (path-style, any credentials). MinIO no longer publishes its images.
+  s3mock:
+    image: adobe/s3mock:5.2.3
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: templates,renders
+    # The S3 plugin only checks the buckets once at startup: Carbone must wait for S3Mock
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/"]
+      interval: 1s
+      retries: 60
+    # Also reached from run.sh to list the buckets
+    ports:
+      - "127.0.0.1:${S3MOCK_PORT:-9090}:9090"
+
+  carbone-azure:
+    <<: *carbone
+    depends_on:
+      azure-cli:
+        condition: service_completed_successfully
+    environment:
+      <<: *carbone-env
+      CARBONE_USE_AZURE_PLUGIN: "true"
+      AZURE_STORAGE_CONNECTION_STRING: *azurite-connection-string
+      CONTAINER_TEMPLATES: templates
+      CONTAINER_RENDERS: renders
+      STORAGE_STRICT_MODE: "true"
+    ports:
+      - "127.0.0.1:${AZURE_PORT:-4101}:4000"
+
+  carbone-s3:
+    <<: *carbone
+    depends_on:
+      s3mock:
+        condition: service_healthy
+    environment:
+      <<: *carbone-env
+      AWS_ACCESS_KEY_ID: carbone
+      AWS_SECRET_ACCESS_KEY: carbone-e2e-secret
+      AWS_ENDPOINT_URL: http://s3mock:9090/
+      AWS_REGION: us-east-1
+      BUCKET_TEMPLATES: templates
+      BUCKET_RENDERS: renders
+    ports:
+      - "127.0.0.1:${S3_PORT:-4102}:4000"
