@@ -62,7 +62,7 @@ RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
 
 FROM node:24 AS azure_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
-	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
+	cd carbone-ee-plugin-azure-storage-blob && npm ci && npm run build
 
 # ---------------------------------------------------------------------------
 # base: everything every variant needs (user, carbone binary, plugins, entrypoint).
@@ -96,7 +96,8 @@ COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypo
 
 # Include plugins
 COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
-COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob /app/plugin-azure/
+# The Azure plugin is bundled by tsdown: dist/ is self-contained, no node_modules needed
+COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob/dist /app/plugin-azure/
 
 # ---------------------------------------------------------------------------
 # Office suite / chrome mixins, each layered on "base".

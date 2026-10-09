@@ -12,7 +12,6 @@ if [ ! -e $CONTAINER_ALREADY_STARTED ]; then
     touch $CONTAINER_ALREADY_STARTED
     if [ "$CARBONE_USE_AZURE_PLUGIN" = true ]; then
         echo "Configuring Carbone with Azure plugin"
-        cp -r /app/plugin-azure/node_modules ${CARBONE_EE_WORKDIR}/plugin/
         cp -r /app/plugin-azure/*.js ${CARBONE_EE_WORKDIR}/plugin/
     elif [ "$CARBONE_USE_S3_PLUGIN" = true ]; then
         echo "Configuring Carbone with S3 plugin"
