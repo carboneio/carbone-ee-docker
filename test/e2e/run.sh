@@ -85,7 +85,7 @@ list_s3() {
 expect_stored() {
   local backend=$1 container=$2 name=$3 state=$4 i
   for i in 1 2 3 4 5; do
-    if "list_$backend" "$container" | grep -qxF "$name"; then
+    if "list_$backend" "$container" | grep -qxF -e "$name"; then
       [ "$state" = present ] && { pass "$name is in $backend/$container"; return; }
     else
       [ "$state" = absent ] && { pass "$name is no longer in $backend/$container"; return; }
@@ -112,7 +112,7 @@ upload_template() {
 check_text() {
   local label=$1 text=$2 expected missing=()
   for expected in "${EXPECTED_TEXT[@]}"; do
-    grep -qF "$expected" <<<"$text" || missing+=("$expected")
+    grep -qF -e "$expected" <<<"$text" || missing+=("$expected")
   done
   if [ ${#missing[@]} -eq 0 ]; then
     pass "$label: document contains the rendered data"
