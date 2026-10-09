@@ -1,7 +1,7 @@
 # Docker build instruction
 
 
-Official build is done by the `Release Carbone Docker` GitHub Action (`.github/workflows/publish.yml`).
+Official build is done by the `Release Carbone Docker` GitHub Action (`.github/workflows/publish.yml`). Each platform is built natively on a GitHub-hosted runner (`ubuntu-24.04` for amd64, `ubuntu-24.04-arm` for arm64) and pushed by digest; a final job merges both digests of every variant into a multi-platform image and applies the tags from `docker-bake.hcl`.
 
 ## Versions
 

@@ -20,73 +20,48 @@ on:
           type: string
           description: Chrome version (empty = docker-bake.hcl)
           required: false
-        target_platforms:
-          type: string
-          description: target platforms
-          required: true
-          default: "linux/amd64,linux/arm64"
         update_latest:
           type: boolean
           description: Update latest tags
           required: true
           default: true
 
-jobs:
-  start-external-builder:
-    name: Start self-hoster EC2 runner
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@343a1b2ae682e681c3cec9a235d882da17ff04ef # v2
-        with:
-          mode: start
-          github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0ef9bcd5dfb57b968
-          ec2-instance-type: t3.medium
-          subnet-id: subnet-027c65f285842519c
-          security-group-id: sg-0ffdee926e8fcecc2
-          iam-role-name: EC2-SSM # optional, requires additional permissions
-          aws-resource-tags: > # optional, requires additional permissions
-            [
-              {"Key": "Name", "Value": "ec2-github-runner"},
-              {"Key": "ST", "Value": "Carbone-docker-Builder"},
-              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
-            ]
-          pre-runner-script: |
-            apt-get update
-            apt-get install -y docker.io unzip curl
-            usermod -aG docker ubuntu
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            ./aws/install
+permissions:
+  contents: read
 
+env:
+  CARBONE_VERSION: ${{ inputs.carbone_version }}
+  LO_VERSION: ${{ inputs.lo_version }}
+  OO_VERSION: ${{ inputs.oo_version }}
+  CHROME_VERSION: ${{ inputs.chrome_version }}
+  UPDATE_LATEST: ${{ inputs.update_latest }}
+  DOCKERHUB_ORG: ${{ vars.DOCKERHUB_ORG }}
+
+jobs:
+  # Each platform is built natively on its own runner and pushed by digest, without tags.
   build:
-    needs: start-external-builder
-    runs-on: ${{ needs.start-external-builder.outputs.label }}
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
     steps:
-    - name: Expand root volume
+    # Hosted runners only guarantee ~14 GB free, the four variants need more
+    -
+      name: Free disk space
       run: |
-        TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-        INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
-        VOLUME_ID=$(aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=$INSTANCE_ID | jq -r .Volumes[0].Attachments[0].VolumeId)
-        echo $INSTANCE_ID
-        echo $VOLUME_ID
-        aws ec2 modify-volume --volume-id $VOLUME_ID --size 32
-        sleep 15  # let it update
-        growpart /dev/nvme0n1 1
-        lsblk
-        resize2fs  /dev/nvme0n1p1
-        df -hT
+        df -h /
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+          /opt/hostedtoolcache/CodeQL /usr/share/swift /usr/local/share/powershell
+        docker system prune -af
+        df -h /
 
     -
       name: Checkout
@@ -111,67 +86,90 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
+
     -
       name: Set up Docker Buildx
       uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+    -
+      name: Set bake variables
+      run: .github/scripts/bake-env.sh
+
+    # Builds slim, full, no-onlyoffice and full-fonts (group "default") for this platform only
+    -
+      name: Build and push by digest
+      run: |
+        docker buildx bake \
+          --set "*.platform=${{ matrix.platform }}" \
+          --set "*.tags=${DOCKERHUB_ORG}/carbone-ee" \
+          --set "*.output=type=image,push-by-digest=true,name-canonical=true,push=true" \
+          --metadata-file "$RUNNER_TEMP/bake-metadata.json"
+        jq 'map_values(."containerimage.digest")' "$RUNNER_TEMP/bake-metadata.json"
+
+    -
+      name: Upload digests
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        platforms: ${{ inputs.target_platforms }}
+        name: bake-metadata-${{ matrix.arch }}
+        path: ${{ runner.temp }}/bake-metadata.json
+        if-no-files-found: error
+        retention-days: 1
 
-    # Bake treats an empty variable as a value, so only filled inputs are exported
+  # Assembles the per-platform digests of each variant into one multi-platform image
+  # and applies the tags computed by docker-bake.hcl. Attestations (provenance, SBOM) are kept.
+  merge:
+    name: Merge and tag
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
     -
-      name: Set version overrides
-      env:
-        CARBONE_VERSION: ${{ inputs.carbone_version }}
-        LO_VERSION: ${{ inputs.lo_version }}
-        OO_VERSION: ${{ inputs.oo_version }}
-        CHROME_VERSION: ${{ inputs.chrome_version }}
+      name: Checkout
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    -
+      name: Download digests
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        pattern: bake-metadata-*
+        path: ${{ runner.temp }}/metadata
+
+    -
+      name: Login to Docker Hub
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+    -
+      name: Set bake variables
+      run: .github/scripts/bake-env.sh
+
+    -
+      name: Create multi-platform images
       run: |
-        for name in CARBONE_VERSION LO_VERSION OO_VERSION CHROME_VERSION; do
-          if [ -n "${!name}" ]; then
-            echo "$name=${!name}" >> "$GITHUB_ENV"
+        docker buildx bake --print > "$RUNNER_TEMP/bake-plan.json"
+        echo "### Images" >> "$GITHUB_STEP_SUMMARY"
+        for target in $(jq -r '.group.default.targets[]' "$RUNNER_TEMP/bake-plan.json"); do
+          mapfile -t tags < <(jq -r --arg t "$target" '.target[$t].tags[]' "$RUNNER_TEMP/bake-plan.json")
+          mapfile -t sources < <(jq -r --arg t "$target" --arg repo "$DOCKERHUB_ORG/carbone-ee" \
+            '$repo + "@" + .[$t]."containerimage.digest"' "$RUNNER_TEMP"/metadata/*/bake-metadata.json)
+          if [ "${#sources[@]}" -ne 2 ]; then
+            echo "::error::$target: expected 2 platform digests, got ${#sources[@]}"
+            exit 1
           fi
+          tag_args=()
+          for tag in "${tags[@]}"; do tag_args+=(-t "$tag"); done
+          echo "$target: ${tags[*]} <- ${sources[*]}"
+          docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "${tags[0]}"
+          echo "- \`$target\`: ${tags[*]}" >> "$GITHUB_STEP_SUMMARY"
         done
-        echo "PLATFORMS=${{ inputs.target_platforms }}" >> "$GITHUB_ENV"
-        echo "UPDATE_LATEST=${{ inputs.update_latest }}" >> "$GITHUB_ENV"
-        echo "DOCKERHUB_ORG=${{ vars.DOCKERHUB_ORG }}" >> "$GITHUB_ENV"
-
-    -
-      name: Show build plan
-      run: |
-        docker buildx bake --print > bake-plan.json
         {
-          echo "### Images"
-          echo '```'
-          jq -r '.target[] | "\(.target): \(.tags | join(" "))"' bake-plan.json
-          echo '```'
           echo '```json'
-          jq '.target.full.args' bake-plan.json
+          jq '.target.full.args' "$RUNNER_TEMP/bake-plan.json"
           echo '```'
         } >> "$GITHUB_STEP_SUMMARY"
-
-    # Builds and pushes slim, full, no-onlyoffice and full-fonts (group "default")
-    -
-      name: Build and push all variants
-      run: docker buildx bake --push
-
-  stop-arm-builder:
-    name: Stop self-hosted EC2 runner
-    needs:
-      - start-external-builder # required to get output from the start-runner job
-      - build # required to wait when the main job is doen
-    runs-on: ubuntu-latest
-    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@343a1b2ae682e681c3cec9a235d882da17ff04ef # v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-external-builder.outputs.label }}
-          ec2-instance-id: ${{ needs.start-external-builder.outputs.ec2-instance-id }}
