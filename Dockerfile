@@ -1,5 +1,8 @@
-ARG CHROME_VERSION="141.0.7390.55"
-ARG CARBONE_VERSION="5.15.4"
+# check=skip=InvalidDefaultArgInFrom
+# Versions have no default here: they are defined once in docker-bake.hcl.
+# Build with "docker buildx bake <target>" (see BUILD.md), or pass every *_VERSION build-arg.
+ARG CHROME_VERSION
+ARG CARBONE_VERSION
 
 FROM ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8 AS cosign
 
@@ -12,7 +15,7 @@ COPY --from=cosign /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certific
 
 FROM verifier AS downloader_libreoffice
 ARG TARGETARCH
-ARG LO_VERSION="26.2.6.3"
+ARG LO_VERSION
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
 # Each architecture is built and signed by its own workflow (build-x86.yml / build-arm64.yml)
@@ -28,7 +31,7 @@ RUN cosign verify-blob "/download/${LO_FILE}" \
 
 FROM verifier AS downloader_onlyoffice
 ARG TARGETARCH
-ARG OO_VERSION="9.0.4"
+ARG OO_VERSION
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG OO_FILE=onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb
 ADD https://bin.carbone.io/onlyoffice-converter/${OO_FILE} /download/${OO_FILE}

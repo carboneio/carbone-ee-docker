@@ -3,26 +3,23 @@ name: Release Carbone Docker
 on:
     workflow_dispatch:
       inputs:
-        lo_version:
-          type: string
-          description: Version number. Tag in libreoffice repository
-          required: true
-          default: "26.2.6.3"
-        oo_version:
-          type: string
-          description: OnlyOffice version
-          required: true
-          default: "9.0.4"
-        chrome_version:
-          type: string
-          description: Chrome version
-          required: true
-          default: "141.0.7390.55"
+        # Versions are defined in docker-bake.hcl. Leave empty to use them, fill in only to override.
         carbone_version:
           type: string
-          description: Version of Carbone-ee
-          required: true
-          default: "5.15.4"
+          description: Carbone-ee version (empty = docker-bake.hcl)
+          required: false
+        lo_version:
+          type: string
+          description: LibreOffice version, tag in libreoffice repository (empty = docker-bake.hcl)
+          required: false
+        oo_version:
+          type: string
+          description: OnlyOffice version (empty = docker-bake.hcl)
+          required: false
+        chrome_version:
+          type: string
+          description: Chrome version (empty = docker-bake.hcl)
+          required: false
         target_platforms:
           type: string
           description: target platforms
@@ -77,17 +74,6 @@ jobs:
     needs: start-external-builder
     runs-on: ${{ needs.start-external-builder.outputs.label }}
     steps:
-    - name: Get dep major version
-      id: getMajorVersion
-      env:
-        LO_FULL_VERSION: ${{ inputs.lo_version }}
-        OO_FULL_VERSION: ${{ inputs.oo_version }}
-        CHROME_FULL_VERSION: ${{ inputs.chrome_version }}
-      run: |
-        echo "libreOfficeMajorVersion=${LO_FULL_VERSION%.*.*}" >> $GITHUB_OUTPUT
-        echo "onlyOfficeMajorVersion=${OO_FULL_VERSION%.*}" >> $GITHUB_OUTPUT
-        echo "chromeMajorVersion=${CHROME_FULL_VERSION%.*.*.*}" >> $GITHUB_OUTPUT
-
     - name: Expand root volume
       run: |
         TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
@@ -107,6 +93,19 @@ jobs:
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     -
+      name: Checkout fonts
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      with:
+        repository: carboneio/carbone-fonts
+        path: carbone-fonts
+        ref: master
+        ssh-key: ${{ secrets.PRIVATE_KEY_FONT_REPO }}
+
+    -
+      name: Remove commercial font
+      run: rm -r carbone-fonts/custom
+
+    -
       name: Login to Docker Hub
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
       with:
@@ -118,97 +117,43 @@ jobs:
       with:
         platforms: ${{ inputs.target_platforms }}
 
+    # Bake treats an empty variable as a value, so only filled inputs are exported
     -
-      name: Buildx and push slim variant
-      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-      with:
-        platforms: ${{ inputs.target_platforms }}
-        context: ./
-        provenance: mode=max
-        sbom: true
-        build-args: |
-          CARBONE_VERSION=${{ inputs.carbone_version }}
-        file: ./Dockerfile
-        target: slim
-        push: true
-        tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:slim-${{ inputs.carbone_version }}
+      name: Set version overrides
+      env:
+        CARBONE_VERSION: ${{ inputs.carbone_version }}
+        LO_VERSION: ${{ inputs.lo_version }}
+        OO_VERSION: ${{ inputs.oo_version }}
+        CHROME_VERSION: ${{ inputs.chrome_version }}
+      run: |
+        for name in CARBONE_VERSION LO_VERSION OO_VERSION CHROME_VERSION; do
+          if [ -n "${!name}" ]; then
+            echo "$name=${!name}" >> "$GITHUB_ENV"
+          fi
+        done
+        echo "PLATFORMS=${{ inputs.target_platforms }}" >> "$GITHUB_ENV"
+        echo "UPDATE_LATEST=${{ inputs.update_latest }}" >> "$GITHUB_ENV"
+        echo "DOCKERHUB_ORG=${{ vars.DOCKERHUB_ORG }}" >> "$GITHUB_ENV"
 
     -
-      name: Buildx and push full variant
-      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-      with:
-        platforms: ${{ inputs.target_platforms }}
-        context: ./
-        provenance: mode=max
-        sbom: true
-        build-args: |
-          CARBONE_VERSION=${{ inputs.carbone_version }}
-          LO_VERSION=${{ inputs.lo_version }}
-          OO_VERSION=${{ inputs.oo_version }}
-          CHROME_VERSION=${{ inputs.chrome_version }}
-        file: ./Dockerfile
-        target: full
-        push: true
-        tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:full-{1}', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:full', vars.DOCKERHUB_ORG) || '' }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:latest', vars.DOCKERHUB_ORG) || '' }}
+      name: Show build plan
+      run: |
+        docker buildx bake --print > bake-plan.json
+        {
+          echo "### Images"
+          echo '```'
+          jq -r '.target[] | "\(.target): \(.tags | join(" "))"' bake-plan.json
+          echo '```'
+          echo '```json'
+          jq '.target.full.args' bake-plan.json
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
 
+    # Builds and pushes slim, full, no-onlyoffice and full-fonts (group "default")
     -
-      name: Buildx and push no-onlyoffice variant
-      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-      with:
-        platforms: ${{ inputs.target_platforms }}
-        context: ./
-        provenance: mode=max
-        sbom: true
-        build-args: |
-          CARBONE_VERSION=${{ inputs.carbone_version }}
-          LO_VERSION=${{ inputs.lo_version }}
-          CHROME_VERSION=${{ inputs.chrome_version }}
-        file: ./Dockerfile
-        target: no-onlyoffice
-        push: true
-        tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:no-onlyoffice-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:no-onlyoffice-{1}', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:no-onlyoffice', vars.DOCKERHUB_ORG) || '' }}
+      name: Build and push all variants
+      run: docker buildx bake --push
 
-    -
-      name: Checkout fonts
-      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      with:
-        repository: carboneio/carbone-fonts
-        path: carbone-fonts
-        ref: master
-        ssh-key: ${{ secrets.PRIVATE_KEY_FONT_REPO }}
-
-    - 
-      name: Remove commercial font
-      run: rm -r carbone-fonts/custom
-    -
-      name: Build and push font variant
-      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-      with:
-        platforms: linux/amd64,linux/arm64
-        context: ./
-        provenance: mode=max
-        sbom: true
-        build-args: |
-          CARBONE_VERSION=${{ inputs.carbone_version }}
-          LO_VERSION=${{ inputs.lo_version }}
-          OO_VERSION=${{ inputs.oo_version }}
-          CHROME_VERSION=${{ inputs.chrome_version }}
-        file: ./Dockerfile
-        target: full-fonts
-        push: true
-        tags: |
-          ${{ vars.DOCKERHUB_ORG }}/carbone-ee:full-${{ inputs.carbone_version }}-L${{ steps.getMajorVersion.outputs.libreOfficeMajorVersion }}-O${{ steps.getMajorVersion.outputs.onlyOfficeMajorVersion }}-C${{ steps.getMajorVersion.outputs.chromeMajorVersion }}-fonts
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:full-{1}-fonts', vars.DOCKERHUB_ORG, inputs.carbone_version) || '' }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:full-fonts', vars.DOCKERHUB_ORG) || '' }}
-          ${{ inputs.update_latest == true && format('{0}/carbone-ee:latest-fonts', vars.DOCKERHUB_ORG) || '' }}
   stop-arm-builder:
     name: Stop self-hosted EC2 runner
     needs:

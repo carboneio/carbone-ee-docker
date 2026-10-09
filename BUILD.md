@@ -1,23 +1,31 @@
 # Docker build instruction
 
 
-Official build is done by github action
+Official build is done by the `Release Carbone Docker` GitHub Action (`.github/workflows/publish.yml`).
 
-To run it locally : 
+## Versions
+
+Component versions (Carbone, LibreOffice, OnlyOffice, Chrome) and image tags are defined **only** in [`docker-bake.hcl`](docker-bake.hcl). The Dockerfile has no default versions and the workflow inputs are empty by default.
+
+To release a new version, update the variable in `docker-bake.hcl`, commit, then run the workflow. Filling a version input in the workflow overrides `docker-bake.hcl` for that run only.
+
+## Local build
 
 ```bash
-#!/bin/bash
-export CARBONE_VERSION=5.15.4
-export LO_VERSION=26.2.6.3
-export OO_VERSION=9.0.4
-export CHROME_VERSION=134.0.6998.166
+# Show the resolved versions, build-args and tags without building
+docker buildx bake --print
 
-docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg CARBONE_VERSION --tag carbone/carbone-ee:slim-$CARBONE_VERSION --attest type=provenance,mode=max --sbom=true -f ./Dockerfile --target slim .
-docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg CARBONE_VERSION --build-arg LO_VERSION --build-arg OO_VERSION --build-arg CHROME_VERSION --tag carbone/carbone-ee:full-$CARBONE_VERSION --attest type=provenance,mode=max --sbom=true -f ./Dockerfile --target full .
-docker buildx build --platform linux/arm64/v8,linux/amd64 --build-arg CARBONE_VERSION --build-arg LO_VERSION --build-arg OO_VERSION --build-arg CHROME_VERSION --tag carbone/carbone-ee:full-$CARBONE_VERSION-fonts --attest type=provenance,mode=max --sbom=true -f ./Dockerfile --target full-fonts .
+# Build one variant for the current platform and load it in the local docker
+docker buildx bake full --load --set '*.platform='
 
-# Other available --target values: no-onlyoffice, no-libreoffice, no-chrome
+# Build every published variant (slim, full, no-onlyoffice, full-fonts) for amd64 + arm64
+docker buildx bake
+
+# Override a version for one build
+CARBONE_VERSION=5.15.5 docker buildx bake full --load --set '*.platform='
 ```
+
+Other targets: `no-libreoffice`, `no-chrome`. `full-fonts` needs a `carbone-fonts` folder (from `carboneio/carbone-fonts`, without `custom/`).
 
 ## Binary signature verification
 
