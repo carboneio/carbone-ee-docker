@@ -84,12 +84,13 @@ jobs:
         OO_VERSION: ${{ inputs.oo_version }}
         CHROME_VERSION: ${{ inputs.chrome_version }}
 
+    # --load needs a single-platform image without attestations (both would make it an index)
     -
       name: Build ${{ matrix.target }}
       run: |
         docker buildx bake ${{ matrix.target }} --load \
           --set '*.platform=linux/${{ matrix.arch }}' \
-          --set '*.attest=' \
+          --provenance=false --sbom=false \
           --set '*.tags=carbone-ee:e2e'
 
     -
