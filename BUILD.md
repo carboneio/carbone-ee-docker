@@ -27,6 +27,17 @@ CARBONE_VERSION=5.15.5 docker buildx bake full --load --set '*.platform='
 
 Other targets: `no-libreoffice`, `no-chrome`. `full-fonts` needs a `carbone-fonts` folder (from `carboneio/carbone-fonts`, without `custom/`).
 
+## End-to-end tests
+
+`test/e2e/run.sh <image>` starts the image with the Azure plugin (on Azurite) and the S3 plugin (on S3Mock), then checks templates and renders go through the storage, and renders a PDF with every converter shipped in the image (LibreOffice, OnlyOffice, Chrome), checking its text and producer. No license is needed. Requires `curl`, `jq`, `unzip` and `poppler-utils`.
+
+```bash
+docker buildx bake full --load --set '*.platform=' --set '*.attest=' --set '*.tags=carbone-ee:e2e'
+test/e2e/run.sh carbone-ee:e2e
+```
+
+The `End-to-end tests` workflow runs them on every pull request for `slim`, `full` and `no-onlyoffice` on amd64 and arm64, and the release workflow runs them before pushing.
+
 ## Binary signature verification
 
 Artefacts downloaded from `bin.carbone.io` are verified with `cosign verify-blob` against their Sigstore bundle (`<file>.sigstore.json`, keyless signature from GitHub Actions, issuer `https://token.actions.githubusercontent.com`). The build fails if a bundle is missing or the signature does not match the expected release workflow.

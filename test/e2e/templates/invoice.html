@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice {d.invoiceNumber}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>Invoice {d.invoiceNumber}</h1>
+  <p>Client: {d.client.name}</p>
+  <table>
+    <tr><th>Description</th><th>Quantity</th><th>Unit price</th></tr>
+    <tr><td>{d.items[i].description}</td><td>{d.items[i].quantity}</td><td>{d.items[i].unitPrice} EUR</td></tr>
+    <tr><td>{d.items[i+1].description}</td></tr>
+  </table>
+  <p>Total: {d.totalAmount} EUR</p>
+</body>
+</html>
