@@ -1,0 +1,25 @@
+# Terraform state
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+.terraform.lock.hcl
+
+# Terraform working files (providers, modules, plans, crash logs)
+.terraform/
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keys and certificates
+*.pem
+*.pub
+
+# Carbone licenses
+*.carbone-license
+
+.vscode/
+carbone-fonts/
