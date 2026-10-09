@@ -1,0 +1,97 @@
+name: End-to-end tests
+
+# Builds each image variant for one platform and runs test/e2e/run.sh against it:
+# Azure and S3 storage plugins (on Azurite and S3Mock) and PDF conversion with every converter shipped.
+on:
+    pull_request:
+    workflow_dispatch:
+      inputs:
+        # Versions are defined in docker-bake.hcl. Leave empty to use them, fill in only to override.
+        carbone_version:
+          type: string
+          description: Carbone-ee version (empty = docker-bake.hcl)
+          required: false
+        lo_version:
+          type: string
+          description: LibreOffice version (empty = docker-bake.hcl)
+          required: false
+        oo_version:
+          type: string
+          description: OnlyOffice version (empty = docker-bake.hcl)
+          required: false
+        chrome_version:
+          type: string
+          description: Chrome version (empty = docker-bake.hcl)
+          required: false
+    # Called by publish.yml before pushing anything
+    workflow_call:
+      inputs:
+        carbone_version:
+          type: string
+          required: false
+        lo_version:
+          type: string
+          required: false
+        oo_version:
+          type: string
+          required: false
+        chrome_version:
+          type: string
+          required: false
+
+permissions:
+  contents: read
+
+env:
+  UPDATE_LATEST: false
+  DOCKERHUB_ORG: carbone
+
+jobs:
+  e2e:
+    name: ${{ matrix.target }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # full-fonts is full + the private carbone-fonts: same binaries, not tested here
+        target: [slim, full, no-onlyoffice]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+    -
+      name: Checkout
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    -
+      name: Install test dependencies
+      run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+    -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+    -
+      name: Set bake variables
+      run: .github/scripts/bake-env.sh
+      # Only this step sees the inputs: an empty variable in the bake step would override docker-bake.hcl
+      env:
+        CARBONE_VERSION: ${{ inputs.carbone_version }}
+        LO_VERSION: ${{ inputs.lo_version }}
+        OO_VERSION: ${{ inputs.oo_version }}
+        CHROME_VERSION: ${{ inputs.chrome_version }}
+
+    -
+      name: Build ${{ matrix.target }}
+      run: |
+        docker buildx bake ${{ matrix.target }} --load \
+          --set '*.platform=' \
+          --set '*.attest=' \
+          --set '*.tags=carbone-ee:e2e'
+
+    -
+      name: Run end-to-end tests
+      run: test/e2e/run.sh carbone-ee:e2e

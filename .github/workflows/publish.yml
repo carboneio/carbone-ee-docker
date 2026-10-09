@@ -34,9 +34,20 @@ env:
   DOCKERHUB_ORG: ${{ vars.DOCKERHUB_ORG }}
 
 jobs:
+  # Nothing is pushed unless every variant passes the end-to-end tests with these versions
+  e2e:
+    name: End-to-end tests
+    uses: ./.github/workflows/e2e.yml
+    with:
+      carbone_version: ${{ inputs.carbone_version }}
+      lo_version: ${{ inputs.lo_version }}
+      oo_version: ${{ inputs.oo_version }}
+      chrome_version: ${{ inputs.chrome_version }}
+
   # Each platform is built natively on its own runner and pushed by digest, without tags.
   build:
     name: Build ${{ matrix.platform }}
+    needs: e2e
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: true
