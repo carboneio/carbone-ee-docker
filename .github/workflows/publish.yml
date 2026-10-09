@@ -30,10 +30,6 @@ permissions:
   contents: read
 
 env:
-  CARBONE_VERSION: ${{ inputs.carbone_version }}
-  LO_VERSION: ${{ inputs.lo_version }}
-  OO_VERSION: ${{ inputs.oo_version }}
-  CHROME_VERSION: ${{ inputs.chrome_version }}
   UPDATE_LATEST: ${{ inputs.update_latest }}
   DOCKERHUB_ORG: ${{ vars.DOCKERHUB_ORG }}
 
@@ -94,6 +90,12 @@ jobs:
     -
       name: Set bake variables
       run: .github/scripts/bake-env.sh
+      # Only this step sees the inputs: an empty variable in the bake step would override docker-bake.hcl
+      env:
+        CARBONE_VERSION: ${{ inputs.carbone_version }}
+        LO_VERSION: ${{ inputs.lo_version }}
+        OO_VERSION: ${{ inputs.oo_version }}
+        CHROME_VERSION: ${{ inputs.chrome_version }}
 
     # Builds slim, full, no-onlyoffice and full-fonts (group "default") for this platform only
     -
@@ -147,6 +149,12 @@ jobs:
     -
       name: Set bake variables
       run: .github/scripts/bake-env.sh
+      # Only this step sees the inputs: an empty variable in the bake step would override docker-bake.hcl
+      env:
+        CARBONE_VERSION: ${{ inputs.carbone_version }}
+        LO_VERSION: ${{ inputs.lo_version }}
+        OO_VERSION: ${{ inputs.oo_version }}
+        CHROME_VERSION: ${{ inputs.chrome_version }}
 
     -
       name: Create multi-platform images
