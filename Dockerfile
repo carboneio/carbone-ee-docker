@@ -56,11 +56,11 @@ RUN cosign verify-blob "/carbone/${CARBONE_FILE}" \
 		--certificate-oidc-issuer https://token.actions.githubusercontent.com && \
 	mv "/carbone/${CARBONE_FILE}" /carbone/carbone-ee-linux
 
-FROM node:22 AS s3_plugin_install
+FROM node:24 AS s3_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
 	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
 
-FROM node:22 AS azure_plugin_install
+FROM node:24 AS azure_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-azure-storage-blob.git && \
 	cd carbone-ee-plugin-azure-storage-blob && npm i && npm ci --omit=dev
 
