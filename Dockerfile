@@ -1,19 +1,57 @@
 ARG CHROME_VERSION="141.0.7390.55"
+ARG CARBONE_VERSION="5.15.4"
 
-FROM debian:stable-slim AS downloader_libreoffice
+FROM ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8 AS cosign
+
+# Base for downloaders whose artefacts are signed with keyless Sigstore (GitHub OIDC):
+# each one fetches the file and its .sigstore.json bundle and fails the build unless
+# cosign proves it was signed by the expected release workflow.
+FROM debian:stable-slim AS verifier
+COPY --from=cosign /ko-app/cosign /usr/local/bin/cosign
+COPY --from=cosign /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+FROM verifier AS downloader_libreoffice
 ARG TARGETARCH
-ARG LO_VERSION="26.2.4.2"
+ARG LO_VERSION="26.2.6.3"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG ARCH=${ARCH/amd64/x86-64}
-ADD https://bin.carbone.io/libreoffice-headless-carbone/LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz /libreoffice.tar.gz
+# Each architecture is built and signed by its own workflow (build-x86.yml / build-arm64.yml)
+ARG LO_WORKFLOW=build-${TARGETARCH/amd64/x86}
+ARG LO_FILE=LibreOffice_${LO_VERSION}_Linux_${ARCH}_deb.tar.gz
+ADD https://bin.carbone.io/libreoffice-headless-carbone/${LO_FILE} /download/${LO_FILE}
+ADD https://bin.carbone.io/libreoffice-headless-carbone/${LO_FILE}.sigstore.json /download/${LO_FILE}.sigstore.json
+RUN cosign verify-blob "/download/${LO_FILE}" \
+		--bundle "/download/${LO_FILE}.sigstore.json" \
+		--certificate-identity-regexp "^https://github\.com/carboneio/libreoffice-headless-builder/\.github/workflows/${LO_WORKFLOW}\.yml@refs/" \
+		--certificate-oidc-issuer https://token.actions.githubusercontent.com && \
+	mv "/download/${LO_FILE}" /libreoffice.tar.gz
 
-FROM debian:stable-slim AS downloader_onlyoffice
+FROM verifier AS downloader_onlyoffice
 ARG TARGETARCH
 ARG OO_VERSION="9.0.4"
 ARG ARCH=${TARGETARCH/arm64/aarch64}
-ADD https://bin.carbone.io/onlyoffice-converter/onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb /onlyoffice.deb
+ARG OO_FILE=onlyoffice-converter-standalone_${OO_VERSION}_${ARCH}.deb
+ADD https://bin.carbone.io/onlyoffice-converter/${OO_FILE} /download/${OO_FILE}
+ADD https://bin.carbone.io/onlyoffice-converter/${OO_FILE}.sigstore.json /download/${OO_FILE}.sigstore.json
+RUN cosign verify-blob "/download/${OO_FILE}" \
+		--bundle "/download/${OO_FILE}.sigstore.json" \
+		--certificate-identity-regexp '^https://github\.com/carboneio/onlyoffice-converter-standalone-debian/\.github/workflows/publish\.yml@refs/' \
+		--certificate-oidc-issuer https://token.actions.githubusercontent.com && \
+	mv "/download/${OO_FILE}" /onlyoffice.deb
 
 FROM chromedp/headless-shell:${CHROME_VERSION} AS downloader_chrome-headless
+
+FROM verifier AS downloader_carbone
+ARG TARGETARCH
+ARG CARBONE_VERSION
+ARG CARBONE_FILE=carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64}
+ADD https://bin.carbone.io/carbone/${CARBONE_FILE} /carbone/${CARBONE_FILE}
+ADD https://bin.carbone.io/carbone/${CARBONE_FILE}.sigstore.json /carbone/${CARBONE_FILE}.sigstore.json
+RUN cosign verify-blob "/carbone/${CARBONE_FILE}" \
+		--bundle "/carbone/${CARBONE_FILE}.sigstore.json" \
+		--certificate-identity-regexp '^https://github\.com/carboneio/carbone-ee/\.github/workflows/build\.yml@refs/' \
+		--certificate-oidc-issuer https://token.actions.githubusercontent.com && \
+	mv "/carbone/${CARBONE_FILE}" /carbone/carbone-ee-linux
 
 FROM node:22 AS s3_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
@@ -31,7 +69,7 @@ FROM debian:stable-slim AS base
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
-ARG CARBONE_VERSION="5.4.2"
+ARG CARBONE_VERSION
 
 LABEL carbone.version=${CARBONE_VERSION}
 
@@ -49,7 +87,7 @@ RUN mkdir ${APP_ROOT} && chown -R carbone:nogroup ${APP_ROOT}
 
 WORKDIR ${APP_ROOT}
 
-ADD --chown=carbone:nogroup --chmod=755 https://bin.carbone.io/carbone/carbone-ee-${CARBONE_VERSION}-linux-${TARGETARCH/amd64/x64} ./carbone-ee-linux
+COPY --chown=carbone:nogroup --chmod=755 --from=downloader_carbone /carbone/carbone-ee-linux ./carbone-ee-linux
 
 COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
 
