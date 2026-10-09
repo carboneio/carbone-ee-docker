@@ -19,9 +19,13 @@ aws secretsmanager create-secret \
   --profile ecs
 ```
 
+Copy the `ARN` returned by this command: it is the value of `license_secret_arn`.
+
 **2. Configure your deployment**
 
 Edit `terraform.tfvars` to match your environment. See the [Configuration](#configuration) section for all available options.
+
+For a production deployment, set up the [remote state](#production-best-practices) and an [HTTPS certificate](#https) before the first apply.
 
 **3. Deploy**
 
@@ -47,6 +51,9 @@ Options can be set in a `terraform.tfvars` file or passed via `-var` flags.
 | Variable | Type | Default | Description |
 |---|---|---|---|
 | `region` | `string` | `"us-east-1"` | AWS region to deploy into |
+| `license_secret_arn` | `string` | — (required) | Full ARN of the Secrets Manager secret holding the Carbone EE license |
+| `certificate_arn` | `string` | `null` | ACM certificate ARN. When set, the ALB serves HTTPS on 443 and redirects port 80 to it. See [HTTPS](#https) |
+| `ssl_policy` | `string` | `"ELBSecurityPolicy-TLS13-1-2-2021-06"` | TLS policy of the HTTPS listener |
 | `studio` | `bool` | `false` | Enable the Carbone Studio web interface |
 | `template_management` | `bool` | `false` | Enable the Template Management API |
 | `debug` | `bool` | `false` | Enable ECS Exec to open a shell into running containers |
@@ -96,7 +103,9 @@ These map to Carbone's own configuration environment variables (`CARBONE_*`). De
 ### Example `terraform.tfvars`
 
 ```hcl
-region           = "eu-west-3"
+region             = "eu-west-3"
+license_secret_arn = "arn:aws:secretsmanager:eu-west-3:123456789012:secret:carbone-ee/license-AbCdEf"
+certificate_arn    = "arn:aws:acm:eu-west-3:123456789012:certificate/00000000-0000-0000-0000-000000000000"
 template_storage = true
 render_storage   = false
 efs_storage      = true
@@ -105,7 +114,7 @@ s3_storage       = false
 
 ## Production best practices
 
-**Remote state** — Store the Terraform state in S3 with a DynamoDB lock table to enable team collaboration and prevent concurrent applies:
+**Remote state** — The Terraform state contains secrets: with `s3_storage = true` it holds the access key and secret of the `carbone-s3-user` IAM user in plaintext. By default Terraform writes it to `terraform.tfstate` on the machine running `apply`. Store it in an encrypted S3 bucket with a DynamoDB lock table instead, by uncommenting and adapting the `backend "s3"` block at the top of `ecs.tf`:
 
 ```hcl
 terraform {
@@ -119,9 +128,11 @@ terraform {
 }
 ```
 
-**HTTPS** — Add an HTTPS listener on the ALB with an ACM certificate and redirect HTTP to HTTPS. Never expose port 80 in production.
+Restrict access to the state bucket to the people who deploy. If you already applied with a local state, run `terraform init -migrate-state` to move it, delete the local `terraform.tfstate*` files, and rotate the S3 user key (`terraform apply -replace='aws_iam_access_key.s3_user_key[0]'`).
 
-**IAM permissions** — The `secretsmanager:GetSecretValue` policy currently allows `Resource: "*"`. Restrict it to the exact ARN of the Carbone license secret.
+<a id="https"></a>**HTTPS** — Without `certificate_arn`, the ALB only listens on port 80 and the Carbone API key and documents travel in cleartext. In production, request an ACM certificate for your domain in the deployment region, set `certificate_arn`, then point your domain (CNAME or Route 53 alias) to the ALB DNS name. Port 80 then only redirects to HTTPS.
+
+**IAM permissions** — The execution role can only read the license secret (`license_secret_arn`) and, when `s3_storage = true`, the S3 credentials secret.
 
 **Disable Studio** — Studio is disabled by default (`studio = false`). Only set it to `true` if you need the web preview interface.
 

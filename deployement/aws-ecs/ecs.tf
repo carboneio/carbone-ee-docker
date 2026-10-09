@@ -12,6 +12,17 @@ terraform {
       version = "~> 3.0"
     }
   }
+
+  # The state contains secrets (the S3 user access key when s3_storage = true).
+  # Keep it in an encrypted remote backend rather than on the local disk.
+  # Uncomment and adapt before the first apply, see README "Remote state".
+  # backend "s3" {
+  #   bucket         = "my-terraform-state"
+  #   key            = "carbone/ecs/terraform.tfstate"
+  #   region         = "eu-west-3"
+  #   dynamodb_table = "terraform-locks"
+  #   encrypt        = true
+  # }
 }
 
 resource "random_id" "bucket_suffix" {
@@ -67,6 +78,33 @@ variable "template_management" {
   description = "Enable Carbone Template Management API"
   type        = bool
   default     = false
+}
+
+variable "license_secret_arn" {
+  description = "Full ARN of the Secrets Manager secret holding the Carbone EE license"
+  type        = string
+
+  validation {
+    condition     = can(regex("^arn:aws[a-z-]*:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:.+$", var.license_secret_arn))
+    error_message = "license_secret_arn must be the full ARN of a Secrets Manager secret."
+  }
+}
+
+variable "certificate_arn" {
+  description = "ARN of an ACM certificate. When set, the ALB serves HTTPS on 443 and redirects HTTP to HTTPS"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.certificate_arn == null || can(regex("^arn:aws[a-z-]*:acm:[a-z0-9-]+:[0-9]{12}:certificate/.+$", var.certificate_arn))
+    error_message = "certificate_arn must be the ARN of an ACM certificate."
+  }
+}
+
+variable "ssl_policy" {
+  description = "TLS policy of the HTTPS listener"
+  type        = string
+  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 }
 
 variable "debug" {
@@ -352,7 +390,10 @@ resource "aws_iam_policy" "secretAccess" {
       {
 	    Effect: "Allow",
 	    Action: "secretsmanager:GetSecretValue",
-	    Resource: "*"
+	    Resource: concat(
+	      [var.license_secret_arn],
+	      var.s3_storage ? [aws_secretsmanager_secret.s3_credentials[0].arn] : []
+	    )
 	  }
 	]
   })
@@ -725,7 +766,7 @@ resource "aws_ecs_task_definition" "carbone-service" {
         [
           {
             name      = "CARBONE_EE_LICENSE"
-            valueFrom = "arn:aws:secretsmanager:eu-west-3:307069698794:secret:carbone-ee/license-G0jIkt"
+            valueFrom = var.license_secret_arn
           }
         ],
         var.s3_storage ? [
@@ -923,12 +964,40 @@ resource "aws_alb" "carbone-alb" {
   }
 }
 
+locals {
+  https_enabled = var.certificate_arn != null
+}
+
+# Without a certificate, HTTP forwards to Carbone (traffic is in cleartext).
+# With a certificate, HTTP only redirects to HTTPS.
 resource "aws_alb_listener" "carbone-alb-listener"   {
   load_balancer_arn = aws_alb.carbone-alb.arn
   port = 80
   protocol = "HTTP"
   default_action {
-    type = "forward"
+    type             = local.https_enabled ? "redirect" : "forward"
+    target_group_arn = local.https_enabled ? null : aws_lb_target_group.carbone-tg.arn
+
+    dynamic "redirect" {
+      for_each = local.https_enabled ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+}
+
+resource "aws_alb_listener" "carbone-alb-listener-https" {
+  count             = local.https_enabled ? 1 : 0
+  load_balancer_arn = aws_alb.carbone-alb.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = var.ssl_policy
+  certificate_arn   = var.certificate_arn
+  default_action {
+    type             = "forward"
     target_group_arn = aws_lb_target_group.carbone-tg.arn
   }
 }
@@ -989,6 +1058,17 @@ resource "aws_security_group" "carbone_alb" {
     to_port          = 80
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  dynamic "ingress" {
+    for_each = local.https_enabled ? [1] : []
+    content {
+      description      = "HTTPS from outside"
+      from_port        = 443
+      to_port          = 443
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+    }
   }
 
   egress {
@@ -1156,5 +1236,5 @@ resource "aws_appautoscaling_policy" "ecs_carbone_target_cpu" {
 ##########################
 output "service_url" {
   description = "Carbone service URL"
-  value       = "http://${aws_alb.carbone-alb.dns_name}"
+  value       = "${local.https_enabled ? "https" : "http"}://${aws_alb.carbone-alb.dns_name}"
 }
