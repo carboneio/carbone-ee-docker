@@ -18,7 +18,7 @@ docker buildx bake --print
 # Build one variant for the current platform and load it in the local docker
 docker buildx bake full --load --set '*.platform='
 
-# Build every published variant (slim, full, no-onlyoffice, full-fonts) for amd64 + arm64
+# Build every published variant (slim, slim-alpine, full, no-onlyoffice, full-fonts) for amd64 + arm64 (slim-alpine: amd64 only)
 docker buildx bake
 
 # Override a version for one build
@@ -37,7 +37,7 @@ docker buildx bake full --load --set '*.platform=linux/arm64' --provenance=false
 test/e2e/run.sh carbone-ee:e2e
 ```
 
-The `End-to-end tests` workflow runs them on every pull request for `slim`, `full` and `no-onlyoffice` on amd64 and arm64, and the release workflow runs them before pushing.
+The `End-to-end tests` workflow runs them on every pull request for `slim`, `full` and `no-onlyoffice` on amd64 and arm64 and `slim-alpine` on amd64, and the release workflow runs them before pushing.
 
 ## Binary signature verification
 
@@ -46,6 +46,7 @@ Artefacts downloaded from `bin.carbone.io` are verified with `cosign verify-blob
 | Stage | Artefact | Signing workflow |
 |-------|----------|------------------|
 | `downloader_carbone` | `carbone/carbone-ee-<version>-linux-<arch>` | `carboneio/carbone-ee/.github/workflows/build.yml` |
+| `downloader_carbone_alpine` | `carbone/carbone-ee-<version>-alpine-x64` (musl) | `carboneio/carbone-ee/.github/workflows/build.yml` |
 | `downloader_libreoffice` | `libreoffice-headless-carbone/LibreOffice_<version>_Linux_<arch>_deb.tar.gz` | `carboneio/libreoffice-headless-builder/.github/workflows/build-x86.yml` (amd64) / `build-arm64.yml` (arm64) |
 | `downloader_onlyoffice` | `onlyoffice-converter/onlyoffice-converter-standalone_<version>_<arch>.deb` | `carboneio/onlyoffice-converter-standalone-debian/.github/workflows/publish.yml` |
 

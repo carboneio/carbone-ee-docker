@@ -56,6 +56,19 @@ RUN cosign verify-blob "/carbone/${CARBONE_FILE}" \
 		--certificate-oidc-issuer https://token.actions.githubusercontent.com && \
 	mv "/carbone/${CARBONE_FILE}" /carbone/carbone-ee-linux
 
+# musl build of the binary, for the Alpine variant (only published for x64)
+FROM verifier AS downloader_carbone_alpine
+ARG TARGETARCH
+ARG CARBONE_VERSION
+ARG CARBONE_FILE=carbone-ee-${CARBONE_VERSION}-alpine-${TARGETARCH/amd64/x64}
+ADD https://bin.carbone.io/carbone/${CARBONE_FILE} /carbone/${CARBONE_FILE}
+ADD https://bin.carbone.io/carbone/${CARBONE_FILE}.sigstore.json /carbone/${CARBONE_FILE}.sigstore.json
+RUN cosign verify-blob "/carbone/${CARBONE_FILE}" \
+		--bundle "/carbone/${CARBONE_FILE}.sigstore.json" \
+		--certificate-identity-regexp '^https://github\.com/carboneio/carbone-ee/\.github/workflows/build\.yml@refs/' \
+		--certificate-oidc-issuer https://token.actions.githubusercontent.com && \
+	mv "/carbone/${CARBONE_FILE}" /carbone/carbone-ee-linux
+
 FROM node:24 AS s3_plugin_install
 RUN git clone https://github.com/carboneio/carbone-ee-plugin-s3.git && \
 	cd carbone-ee-plugin-s3 && npm ci --omit=dev && rm -R test
@@ -162,6 +175,45 @@ RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/
 EXPOSE 4000/tcp
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
+
+CMD ["webserver"]
+
+# ---------------------------------------------------------------------------
+# slim-alpine: same content as slim, on Alpine with the musl build of Carbone.
+# ---------------------------------------------------------------------------
+FROM alpine:3 AS slim-alpine
+
+ARG CARBONE_VERSION
+
+LABEL carbone.version=${CARBONE_VERSION}
+
+# No package needed: the binary only links against musl, and without LibreOffice / Chrome
+# nothing uses fontconfig. The debug tools of slim (dig, ping) are left out.
+# Create Carbone user (no home creation: /app is created below)
+RUN adduser -D -H -h /app carbone
+
+ENV APP_ROOT=/app/
+RUN mkdir ${APP_ROOT} && chown -R carbone:nogroup ${APP_ROOT}
+
+WORKDIR ${APP_ROOT}
+
+COPY --chown=carbone:nogroup --chmod=755 --from=downloader_carbone_alpine /carbone/carbone-ee-linux ./carbone-ee-linux
+
+COPY --chown=carbone:nogroup --chmod=755 ./docker-entrypoint.sh ./docker-entrypoint.sh
+
+COPY --chown=carbone:nogroup --from=s3_plugin_install carbone-ee-plugin-s3 /app/plugin-s3/
+COPY --chown=carbone:nogroup --from=azure_plugin_install carbone-ee-plugin-azure-storage-blob/dist /app/plugin-azure/
+
+COPY --chown=carbone:nogroup fonts /usr/share/fonts/
+
+USER carbone
+
+RUN mkdir /app/template && mkdir /app/render && mkdir /app/config && mkdir /app/asset && mkdir /app/plugin && mkdir /app/database
+
+EXPOSE 4000/tcp
+
+# The entrypoint is POSIX: run it with busybox sh instead of installing bash
+ENTRYPOINT ["/bin/sh", "./docker-entrypoint.sh"]
 
 CMD ["webserver"]
 

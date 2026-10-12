@@ -49,7 +49,7 @@ OO     = "O${major(OO_VERSION, 2)}"
 CHROME = "C${major(CHROME_VERSION, 1)}"
 
 group "default" {
-  targets = ["slim", "full", "no-onlyoffice", "full-fonts"]
+  targets = ["slim", "slim-alpine", "full", "no-onlyoffice", "full-fonts"]
 }
 
 target "_common" {
@@ -72,6 +72,14 @@ target "slim" {
   inherits = ["_common"]
   target   = "slim"
   tags     = tags(["slim-${CARBONE_VERSION}"], [])
+}
+
+# The musl build of Carbone is only published for x64
+target "slim-alpine" {
+  inherits  = ["_common"]
+  target    = "slim-alpine"
+  platforms = ["linux/amd64"]
+  tags      = tags(["slim-alpine-${CARBONE_VERSION}"], [])
 }
 
 target "full" {

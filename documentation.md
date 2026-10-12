@@ -121,9 +121,11 @@ This image can be deployed in all containerized environments: Docker, Kubernetes
 
 ## Docker image variant
 
-Three image variants are available: 
+The following image variants are available: 
 
 - slim, slim-'Carbone Version' : Minimal version of Carbone. This image does not include Libreoffice (no PDF generation possible). You can use this image to run Carbone with the LibreOffice version of your choice.
+
+- slim-alpine-'Carbone Version' : Same as slim, based on Alpine Linux. Available for amd64 only.
 
 - latest, full, full-'Carbone Version', full-'Carbone Version'-L'LibreOffice Version' : Full version of Carbone including the latest version of LibreOffice
 
