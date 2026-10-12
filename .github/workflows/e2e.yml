@@ -54,8 +54,12 @@ jobs:
       fail-fast: false
       matrix:
         # full-fonts is full + the private carbone-fonts: same binaries, not tested here
-        target: [slim, full, no-onlyoffice]
+        target: [slim, slim-alpine, full, no-onlyoffice]
         arch: [amd64, arm64]
+        exclude:
+          # The musl build of Carbone is only published for x64
+          - target: slim-alpine
+            arch: arm64
         include:
           - arch: amd64
             runner: ubuntu-24.04

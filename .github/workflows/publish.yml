@@ -108,11 +108,14 @@ jobs:
         OO_VERSION: ${{ inputs.oo_version }}
         CHROME_VERSION: ${{ inputs.chrome_version }}
 
-    # Builds slim, full, no-onlyoffice and full-fonts (group "default") for this platform only
+    # Builds the variants of group "default" that support this platform (slim-alpine is amd64 only)
     -
       name: Build and push by digest
       run: |
-        docker buildx bake \
+        mapfile -t targets < <(docker buildx bake --print | jq -r --arg p "${{ matrix.platform }}" \
+          '.target as $all | .group.default.targets[] | select($all[.].platforms | index($p))')
+        echo "Targets for ${{ matrix.platform }}: ${targets[*]}"
+        docker buildx bake "${targets[@]}" \
           --set "*.platform=${{ matrix.platform }}" \
           --set "*.tags=${DOCKERHUB_ORG}/carbone-ee" \
           --set "*.output=type=image,push-by-digest=true,name-canonical=true,push=true" \
@@ -175,9 +178,10 @@ jobs:
         for target in $(jq -r '.group.default.targets[]' "$RUNNER_TEMP/bake-plan.json"); do
           mapfile -t tags < <(jq -r --arg t "$target" '.target[$t].tags[]' "$RUNNER_TEMP/bake-plan.json")
           mapfile -t sources < <(jq -r --arg t "$target" --arg repo "$DOCKERHUB_ORG/carbone-ee" \
-            '$repo + "@" + .[$t]."containerimage.digest"' "$RUNNER_TEMP"/metadata/*/bake-metadata.json)
-          if [ "${#sources[@]}" -ne 2 ]; then
-            echo "::error::$target: expected 2 platform digests, got ${#sources[@]}"
+            'select(.[$t]) | $repo + "@" + .[$t]."containerimage.digest"' "$RUNNER_TEMP"/metadata/*/bake-metadata.json)
+          expected=$(jq -r --arg t "$target" '.target[$t].platforms | length' "$RUNNER_TEMP/bake-plan.json")
+          if [ "${#sources[@]}" -ne "$expected" ]; then
+            echo "::error::$target: expected $expected platform digests, got ${#sources[@]}"
             exit 1
           fi
           tag_args=()

@@ -28,6 +28,7 @@ docker buildx bake full --load --set '*.platform='
 | Target | Content |
 |--------|---------|
 | `slim` | Carbone only, no LibreOffice / OnlyOffice / Chrome (no PDF generation) |
+| `slim-alpine` | `slim` on Alpine Linux (amd64 only) |
 | `full` | LibreOffice + OnlyOffice + Chrome |
 | `full-fonts` | `full` + all [Google Fonts](https://fonts.google.com) (royalty-free) |
 | `no-onlyoffice` | LibreOffice + Chrome |
