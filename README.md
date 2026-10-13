@@ -107,3 +107,9 @@ You can also save `templates` and `renders` (generated documents), a storage spa
 ### Port Mapping
 
 Standard port mappings can be used if you'd like to access the instance from the host without the container's IP. Add `-p 4000:4000` to the `docker run` arguments and then access either `http://localhost:4000` or `http://host-ip:4000` in a browser.
+
+## License
+
+The files in this repository (Dockerfile, scripts, deployment examples) are released under the [Apache License 2.0](LICENSE).
+
+This license does not cover Carbone Enterprise Edition itself: the Carbone software shipped in the `carbone/carbone-ee` image is commercial software subject to its own license terms (see [Start Carbone instantly](#start-carbone-instantly)). The image also contains third-party software (LibreOffice, OnlyOffice, Chrome, fonts) distributed under their respective licenses.
