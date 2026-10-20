@@ -69,5 +69,7 @@ services:
       AWS_REGION: us-east-1
       BUCKET_TEMPLATES: templates
       BUCKET_RENDERS: renders
+      # Default 1084 minus 1024: since Carbone 5.16, bit 1024 blocks outgoing traffic to private IPs, S3Mock included
+      CARBONE_SECURITY_LEVEL: "60"
     ports:
       - "127.0.0.1:${S3_PORT:-4102}:4000"
