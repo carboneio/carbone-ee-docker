@@ -56,6 +56,10 @@ target "_common" {
   context    = "."
   dockerfile = "Dockerfile"
   platforms  = split(",", PLATFORMS)
+  # Always rebuild on the latest base images and re-run the apt/apk upgrade layers,
+  # so every build gets the current OS security fixes (downloads stay cached).
+  pull            = true
+  no-cache-filter = ["base", "slim-alpine"]
   attest = [
     "type=provenance,mode=max",
     "type=sbom",

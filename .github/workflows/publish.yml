@@ -1,6 +1,9 @@
 name: Release Carbone Docker
 
 on:
+    # Weekly rebuild with the versions of docker-bake.hcl, to ship the OS security fixes
+    schedule:
+      - cron: '0 4 * * 1'
     workflow_dispatch:
       inputs:
         # Versions are defined in docker-bake.hcl. Leave empty to use them, fill in only to override.
@@ -30,7 +33,8 @@ permissions:
   contents: read
 
 env:
-  UPDATE_LATEST: ${{ inputs.update_latest }}
+  # Inputs are empty on a scheduled run: move the floating tags too
+  UPDATE_LATEST: ${{ github.event_name == 'schedule' || inputs.update_latest }}
   DOCKERHUB_ORG: ${{ vars.DOCKERHUB_ORG }}
 
 jobs:

@@ -90,8 +90,10 @@ ARG CARBONE_VERSION
 LABEL carbone.version=${CARBONE_VERSION}
 
 WORKDIR /tmp
-RUN apt update && \
-    apt install -y libfreetype6 fontconfig libgssapi-krb5-2 unzip libpixman-1-0 dnsutils iputils-ping && \
+# "upgrade" pulls the security fixes published since the debian:stable-slim image was built
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y libfreetype6 fontconfig libgssapi-krb5-2 unzip libpixman-1-0 dnsutils iputils-ping && \
     rm -rf /var/lib/apt/lists/*
 
 # Create Carbone user
@@ -189,6 +191,9 @@ LABEL carbone.version=${CARBONE_VERSION}
 
 # No package needed: the binary only links against musl, and without LibreOffice / Chrome
 # nothing uses fontconfig. The debug tools of slim (dig, ping) are left out.
+# Security fixes published since the alpine:3 image was built
+RUN apk upgrade --no-cache
+
 # Create Carbone user (no home creation: /app is created below)
 RUN adduser -D -H -h /app carbone
 
