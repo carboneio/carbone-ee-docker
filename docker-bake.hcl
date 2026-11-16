@@ -5,11 +5,11 @@
 # Every artefact downloaded from bin.carbone.io must be signed (see BUILD.md).
 
 variable "CARBONE_VERSION" {
-  default = "5.15.4"
+  default = "5.18.0"
 }
 
 variable "LO_VERSION" {
-  default = "26.2.6.3"
+  default = "26.2.7.1"
 }
 
 variable "OO_VERSION" {
